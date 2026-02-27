@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'state/session_provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'screens/interview_screen.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(
+    const ProviderScope(   // 🔥 REQUIRED for Riverpod
+      child: MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -12,12 +15,9 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => SessionProvider(),
-      child: const MaterialApp(
-        debugShowCheckedModeBanner: false,
-        home: InterviewScreen(),
-      ),
+    return const MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: InterviewScreen(),
     );
   }
 }

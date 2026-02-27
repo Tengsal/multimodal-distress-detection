@@ -1,6 +1,6 @@
 name: multimodal_framework
 description: A structured FSM-based mental health screening application.
-publish_to: 'none' # Remove this line if you want to publish to pub.dev
+publish_to: 'none'
 
 version: 1.0.0+1
 
@@ -11,25 +11,15 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # State management
-  provider: ^6.1.2
-
-  # Unique session IDs
-  uuid: ^4.3.3
-
-  # HTTP (for Python backend later)
+  flutter_riverpod: ^2.5.1
   http: ^1.2.0
-
-  # Optional - for local JSON storage later
+  uuid: ^4.3.3
   shared_preferences: ^2.2.2
-
-  # Cupertino icons (required by Flutter template)
   cupertino_icons: ^1.0.6
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-
   flutter_lints: ^3.0.2
 
 flutter:
