@@ -1,32 +1,47 @@
 from __future__ import annotations
 
+import sys
+from pathlib import Path
+
+# --------------------------------------------------
+# FIX PYTHON PATH (Windows + Uvicorn Safe)
+# --------------------------------------------------
+BASE_DIR = Path(__file__).resolve().parent
+sys.path.append(str(BASE_DIR))
+
 import csv
 import json
 import uuid
 from datetime import datetime
-from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
 
+# 🔥 Import ML Engine
+from mental_state_engine.src.main import run_pipeline
+
+# 🔥 Import Statistical Baseline Layer
+from baseline_model import (
+    update_baseline,
+    compute_z_score,
+    load_baseline,
+)
+
 # ================================================================
-# PATH CONFIGURATION (ABSOLUTE + DEBUG SAFE)
+# DATA PATHS
 # ================================================================
 
-BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
 SESSIONS_JSON = DATA_DIR / "sessions.json"
-SESSIONS_CSV  = DATA_DIR / "sessions.csv"
+SESSIONS_CSV = DATA_DIR / "sessions.csv"
 
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 print("🔥 Backend starting...")
-print("📂 BASE_DIR:", BASE_DIR)
-print("📂 DATA_DIR:", DATA_DIR)
-print("📄 JSON PATH:", SESSIONS_JSON)
-print("📄 CSV PATH:", SESSIONS_CSV)
+print("📂 Backend Path:", BASE_DIR)
+
 
 # ================================================================
 # MODELS
@@ -88,91 +103,48 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 # ================================================================
-# STORAGE
+# STORAGE HELPERS
 # ================================================================
 
-def _append_json(session: SessionIn) -> None:
-    record = session.model_dump()
-    record["received_at"] = datetime.utcnow().isoformat()
-
-    print("📝 Writing JSON to:", SESSIONS_JSON)
-
+def _append_json(data: dict) -> None:
+    data["received_at"] = datetime.utcnow().isoformat()
     with open(SESSIONS_JSON, "a", encoding="utf-8") as f:
-        f.write(json.dumps(record, ensure_ascii=False) + "\n")
+        f.write(json.dumps(data, ensure_ascii=False) + "\n")
 
 
 def _append_csv(session: SessionIn) -> None:
-    # ── 1. Metadata ───────────────────────────────────────────────
     row: Dict[str, Any] = {
-        "session_id":    session.session_id,
-        "started_at":    session.started_at,
-        "completed_at":  session.completed_at or "",
-        "app_version":   session.app_version,
+        "session_id": session.session_id,
+        "started_at": session.started_at,
+        "completed_at": session.completed_at or "",
+        "app_version": session.app_version,
         "total_questions": session.total_questions_answered,
-        "is_high_risk":  int(session.is_high_risk),
-        "received_at":   datetime.utcnow().isoformat(),
+        "is_high_risk": int(session.is_high_risk),
+        "received_at": datetime.utcnow().isoformat(),
     }
 
-    # ── 2. Module scores (6 modules × 3 columns each) ─────────────
-    # Produces: sleep_total, sleep_avg, sleep_severity, mood_total, ...
     modules = ["sleep", "mood", "anxiety", "social", "energy", "cognitive"]
+
     for mod in modules:
         score = session.module_scores.get(mod)
         if score:
-            row[f"{mod}_total"]    = score.total_score
-            row[f"{mod}_avg"]      = round(score.average_score, 3)
+            row[f"{mod}_total"] = score.total_score
+            row[f"{mod}_avg"] = round(score.average_score, 3)
             row[f"{mod}_severity"] = score.severity
         else:
-            row[f"{mod}_total"]    = 0
-            row[f"{mod}_avg"]      = 0.0
+            row[f"{mod}_total"] = 0
+            row[f"{mod}_avg"] = 0.0
             row[f"{mod}_severity"] = "none"
 
-    # ── 3. Safety flags (binary columns: 1 = fired, 0 = not) ──────
-    known_flags = [
-        "PASSIVE_SUICIDAL_IDEATION",
-        "ACTIVE_SELF_HARM_IDEATION",
-        "PERSISTENT_SUICIDAL_IDEATION",
-        "SUICIDAL_PLAN",
-        "NO_HELP_SOUGHT_IDEATION",
-        "PERCEIVED_BURDENSOMENESS",
-        "SEVERE_HOPELESSNESS",
-        "FREQUENT_PANIC_ATTACKS",
-        "SEVERE_SLEEP_IMPAIRMENT",
-        "SUBSTANCE_SLEEP_DEPENDENCY",
-        "DISORDERED_EATING_RISK",
-        "PHYSICAL_HEALTH_NEGLECT",
-    ]
-    fired_codes = {f.code for f in session.safety_flags}
-    for code in known_flags:
-        row[f"flag_{code}"] = 1 if code in fired_codes else 0
-
-    # ── 4. Write ───────────────────────────────────────────────────
     file_exists = SESSIONS_CSV.exists() and SESSIONS_CSV.stat().st_size > 0
-
-    print("📝 Writing CSV to:", SESSIONS_CSV)
-    print("   Columns:", len(row), "| Modules found:", list(session.module_scores.keys()))
-    print("   Flags fired:", list(fired_codes) if fired_codes else "none")
 
     with open(SESSIONS_CSV, "a", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=list(row.keys()))
         if not file_exists:
             writer.writeheader()
-            print("   ✅ CSV header written (new file)")
         writer.writerow(row)
-        print("   ✅ CSV row written")
-
-
-def _load_all_sessions() -> List[Dict[str, Any]]:
-    if not SESSIONS_JSON.exists():
-        return []
-    sessions = []
-    with open(SESSIONS_JSON, "r", encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if line:
-                sessions.append(json.loads(line))
-    return sessions
 
 
 # ================================================================
@@ -183,80 +155,92 @@ def _load_all_sessions() -> List[Dict[str, Any]]:
 async def create_session(session: SessionIn) -> Dict[str, Any]:
 
     print("✅ Session received:", session.session_id)
-    print("   Questions answered:", session.total_questions_answered)
-    print("   High risk:", session.is_high_risk)
-    print("   Module scores keys:", list(session.module_scores.keys()))
-    print("   Safety flags:", [f.code for f in session.safety_flags])
 
-    _append_json(session)
+    # --------------------------------------------------
+    # Build Explicit Vector
+    # --------------------------------------------------
+    explicit_vector = [
+        session.module_scores.get("mood").average_score if session.module_scores.get("mood") else 0,
+        session.module_scores.get("sleep").average_score if session.module_scores.get("sleep") else 0,
+        session.module_scores.get("anxiety").average_score if session.module_scores.get("anxiety") else 0,
+    ]
+
+    # --------------------------------------------------
+    # Compute Latencies Between Questions
+    # --------------------------------------------------
+    latencies = []
+    avg_latency = 0
+
+    if session.responses:
+        times = [datetime.fromisoformat(r.answered_at) for r in session.responses]
+
+        for i in range(1, len(times)):
+            delta = (times[i] - times[i - 1]).total_seconds()
+            latencies.append(delta)
+
+        if latencies:
+            avg_latency = sum(latencies) / len(latencies)
+
+    # --------------------------------------------------
+    # Placeholder Free Text (Phase 1)
+    # --------------------------------------------------
+    free_text = "User reports mild mood and sleep disturbance."
+
+    # --------------------------------------------------
+    # Run ML Engine
+    # --------------------------------------------------
+    engine_output = run_pipeline(
+        explicit=explicit_vector,
+        text=free_text,
+        latencies=latencies,
+    )
+
+    print("🧠 Engine Output:", engine_output)
+
+    # --------------------------------------------------
+    # Statistical Baseline Layer
+    # --------------------------------------------------
+    risk = engine_output["risk_score"]
+
+    baseline_data = load_baseline()
+
+    risk_z = compute_z_score(risk, baseline_data["risk_scores"])
+    latency_z = compute_z_score(avg_latency, baseline_data["latencies"])
+
+    quality_flags = []
+
+    if abs(risk_z) > 2:
+        quality_flags.append("risk_outlier")
+
+    if abs(latency_z) > 2:
+        quality_flags.append("latency_outlier")
+
+    # Update baseline AFTER computing z-scores
+    update_baseline(risk, avg_latency)
+
+    # --------------------------------------------------
+    # Store Everything
+    # --------------------------------------------------
+    session_record = session.model_dump()
+    session_record["engine_output"] = engine_output
+    session_record["risk_z_score"] = risk_z
+    session_record["latency_z_score"] = latency_z
+    session_record["quality_flags"] = quality_flags
+
+    _append_json(session_record)
     _append_csv(session)
-
-    if session.is_high_risk:
-        _handle_high_risk(session)
 
     return {
         "status": "ok",
         "session_id": session.session_id,
-        "received_at": datetime.utcnow().isoformat(),
-        "total_questions": session.total_questions_answered,
-        "is_high_risk": session.is_high_risk,
-        "flags_raised": len(session.safety_flags),
-        "message": (
-            "⚠️  HIGH RISK SESSION — review immediately."
-            if session.is_high_risk
-            else "Session stored successfully."
-        ),
+        "risk_score": risk,
+        "consistency": engine_output["consistency"],
+        "risk_z_score": risk_z,
+        "latency_z_score": latency_z,
+        "quality_flags": quality_flags,
     }
 
 
-@app.get("/sessions")
-async def list_sessions() -> List[Dict[str, Any]]:
-    sessions = _load_all_sessions()
-    return [
-        {
-            "session_id":      s.get("session_id"),
-            "started_at":      s.get("started_at"),
-            "completed_at":    s.get("completed_at"),
-            "total_questions": s.get("total_questions_answered"),
-            "is_high_risk":    s.get("is_high_risk"),
-            "flags_raised":    len(s.get("safety_flags", [])),
-        }
-        for s in sessions
-    ]
-
-
-@app.get("/sessions/{session_id}")
-async def get_session(session_id: str) -> Dict[str, Any]:
-    for s in _load_all_sessions():
-        if s.get("session_id") == session_id:
-            return s
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail=f"Session '{session_id}' not found.",
-    )
-
-
 @app.get("/health")
-async def health() -> Dict[str, str]:
+async def health():
     return {"status": "ok", "time": datetime.utcnow().isoformat()}
-
-
-# ================================================================
-# HIGH-RISK HANDLER
-# ================================================================
-
-def _handle_high_risk(session: SessionIn) -> None:
-    print(
-        f"\n{'='*60}\n"
-        f"⚠️  HIGH RISK SESSION DETECTED\n"
-        f"   Session ID : {session.session_id}\n"
-        f"   Started at : {session.started_at}\n"
-        f"   Flags      : {[f.code for f in session.safety_flags if f.severity == 'HIGH']}\n"
-        f"{'='*60}\n"
-    )
-
-    hr_path = DATA_DIR / "high_risk_sessions.json"
-    record = session.model_dump()
-    record["received_at"] = datetime.utcnow().isoformat()
-    with open(hr_path, "a", encoding="utf-8") as f:
-        f.write(json.dumps(record, ensure_ascii=False) + "\n")
