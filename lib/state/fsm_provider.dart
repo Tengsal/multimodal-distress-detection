@@ -1,5 +1,3 @@
-// lib/providers/fsm_provider.dart
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/question_bank.dart';
@@ -13,6 +11,7 @@ class FsmState {
   final bool isComplete;
   final bool isSubmitting;
   final bool isHighRisk;
+  final bool needsText;
   final String? submitError;
 
   const FsmState({
@@ -21,6 +20,7 @@ class FsmState {
     this.isComplete = false,
     this.isSubmitting = false,
     this.isHighRisk = false,
+    this.needsText = false,
     this.submitError,
   });
 
@@ -30,16 +30,19 @@ class FsmState {
     bool? isComplete,
     bool? isSubmitting,
     bool? isHighRisk,
+    bool? needsText,
     String? submitError,
-  }) =>
-      FsmState(
-        currentQuestionId: currentQuestionId ?? this.currentQuestionId,
-        answers: answers ?? this.answers,
-        isComplete: isComplete ?? this.isComplete,
-        isSubmitting: isSubmitting ?? this.isSubmitting,
-        isHighRisk: isHighRisk ?? this.isHighRisk,
-        submitError: submitError ?? this.submitError,
-      );
+  }) {
+    return FsmState(
+      currentQuestionId: currentQuestionId ?? this.currentQuestionId,
+      answers: answers ?? this.answers,
+      isComplete: isComplete ?? this.isComplete,
+      isSubmitting: isSubmitting ?? this.isSubmitting,
+      isHighRisk: isHighRisk ?? this.isHighRisk,
+      needsText: needsText ?? this.needsText,
+      submitError: submitError,
+    );
+  }
 }
 
 class FsmNotifier extends StateNotifier<FsmState> {
@@ -48,6 +51,10 @@ class FsmNotifier extends StateNotifier<FsmState> {
   final ScoringEngine _engine = ScoringEngine();
   final DateTime _sessionStart = DateTime.now();
 
+  // ─────────────────────────────────────────────
+  // RECORD ANSWER
+  // ─────────────────────────────────────────────
+
   Future<void> answer(int rating) async {
     final qId = state.currentQuestionId;
     if (qId == null) return;
@@ -55,7 +62,6 @@ class FsmNotifier extends StateNotifier<FsmState> {
     final question = QuestionBank.questions[qId];
     if (question == null) return;
 
-    // Record response in scoring engine
     _engine.record(
       questionId: qId,
       module: question.module,
@@ -66,32 +72,14 @@ class FsmNotifier extends StateNotifier<FsmState> {
     final nextId = question.transitions[rating];
     final updatedAnswers = {...state.answers, qId: rating};
 
-    // 🔥 If this is the END → submit FIRST, then mark complete
     if (nextId == null || nextId == "end") {
+      // 🚀 DO NOT submit yet
       state = state.copyWith(
         answers: updatedAnswers,
-        isSubmitting: true,
+        needsText: true,
         isHighRisk: _engine.isHighRisk,
       );
-
-      try {
-        await SessionService.submitSession(
-          engine: _engine,
-          sessionStart: _sessionStart,
-        );
-        // Only AFTER successful submission → complete
-        state = state.copyWith(
-          isSubmitting: false,
-          isComplete: true,
-        );
-      } catch (e) {
-        state = state.copyWith(
-          isSubmitting: false,
-          submitError: e.toString(),
-        );
-      }
     } else {
-      // Normal transition
       state = state.copyWith(
         currentQuestionId: nextId,
         answers: updatedAnswers,
@@ -100,26 +88,40 @@ class FsmNotifier extends StateNotifier<FsmState> {
     }
   }
 
-  // Expose current module scores for live progress UI
-  Map<String, dynamic> get currentScores =>
-      _engine.computeModuleScores().map(
-        (k, v) => MapEntry(k, v.toJson()),
+  // ─────────────────────────────────────────────
+  // FINAL SUBMIT WITH TEXT
+  // ─────────────────────────────────────────────
+
+  Future<void> submitWithText(String text) async {
+    state = state.copyWith(isSubmitting: true);
+
+    try {
+      await SessionService.submitSession(
+        engine: _engine,
+        sessionStart: _sessionStart,
+        userText: text,
       );
 
-  // Expose current safety flags for live UI
-  List<Map<String, dynamic>> get currentFlags =>
-      _engine.safetyFlags.map((f) => f.toJson()).toList();
+      state = state.copyWith(
+        isSubmitting: false,
+        isComplete: true,
+        needsText: false,
+      );
+    } catch (e) {
+      state = state.copyWith(
+        isSubmitting: false,
+        submitError: e.toString(),
+      );
+    }
+  }
 
-  // Expose flat feature vector for debug/display
-  Map<String, double> get featureVector => _engine.buildFeatureVector();
-
-  // Reset everything for a new session
   void reset() {
     _engine.reset();
     state = const FsmState(currentQuestionId: "sleep_01");
   }
 }
 
-final fsmProvider = StateNotifierProvider<FsmNotifier, FsmState>(
+final fsmProvider =
+    StateNotifierProvider<FsmNotifier, FsmState>(
   (ref) => FsmNotifier(),
 );

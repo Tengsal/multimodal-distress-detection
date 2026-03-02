@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../state/fsm_provider.dart';
 import '../data/question_bank.dart';
 import '../widgets/likert_scale.dart';
+import 'text_input_screen.dart';
 
 class InterviewScreen extends ConsumerWidget {
   const InterviewScreen({super.key});
@@ -13,7 +14,16 @@ class InterviewScreen extends ConsumerWidget {
     final state = ref.watch(fsmProvider);
     final notifier = ref.read(fsmProvider.notifier);
 
-    // 🔹 If finished → show summary
+    // ─────────────────────────────────────────────
+    // SHOW TEXT INPUT AFTER QUESTIONS
+    // ─────────────────────────────────────────────
+    if (state.needsText) {
+      return const TextInputScreen();
+    }
+
+    // ─────────────────────────────────────────────
+    // SHOW SUMMARY AFTER SUBMIT
+    // ─────────────────────────────────────────────
     if (state.isComplete) {
       return Scaffold(
         appBar: AppBar(title: const Text("Summary")),
@@ -26,11 +36,16 @@ class InterviewScreen extends ConsumerWidget {
       );
     }
 
+    // ─────────────────────────────────────────────
+    // NORMAL QUESTION FLOW
+    // ─────────────────────────────────────────────
     final question =
         QuestionBank.questions[state.currentQuestionId]!;
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Mental Health Screening")),
+      appBar: AppBar(
+        title: const Text("Mental Health Screening"),
+      ),
       body: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(

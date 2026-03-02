@@ -72,16 +72,22 @@ class ResponseIn(BaseModel):
     answered_at: str
 
 
+
 class SessionIn(BaseModel):
     session_id: str
     started_at: str
     completed_at: Optional[str] = None
     app_version: str = "1.0.0"
+
     total_questions_answered: int
     is_high_risk: bool
-    safety_flags: List[SafetyFlagIn] = []
-    module_scores: Dict[str, ModuleScoreIn] = {}
-    responses: List[ResponseIn] = []
+
+    # ✅ ADD THIS
+    user_text: Optional[str] = None
+
+    safety_flags: List[SafetyFlagIn] = Field(default_factory=list)
+    module_scores: Dict[str, ModuleScoreIn] = Field(default_factory=dict)
+    responses: List[ResponseIn] = Field(default_factory=list)
 
     @field_validator("session_id")
     @classmethod
@@ -156,18 +162,18 @@ async def create_session(session: SessionIn) -> Dict[str, Any]:
 
     print("✅ Session received:", session.session_id)
 
-    # --------------------------------------------------
-    # Build Explicit Vector
-    # --------------------------------------------------
+    # -------------------------
+    # Explicit Vector
+    # -------------------------
     explicit_vector = [
         session.module_scores.get("mood").average_score if session.module_scores.get("mood") else 0,
         session.module_scores.get("sleep").average_score if session.module_scores.get("sleep") else 0,
         session.module_scores.get("anxiety").average_score if session.module_scores.get("anxiety") else 0,
     ]
 
-    # --------------------------------------------------
-    # Compute Latencies Between Questions
-    # --------------------------------------------------
+    # -------------------------
+    # Latencies
+    # -------------------------
     latencies = []
     avg_latency = 0
 
@@ -181,14 +187,14 @@ async def create_session(session: SessionIn) -> Dict[str, Any]:
         if latencies:
             avg_latency = sum(latencies) / len(latencies)
 
-    # --------------------------------------------------
-    # Placeholder Free Text (Phase 1)
-    # --------------------------------------------------
-    free_text = "User reports mild mood and sleep disturbance."
+    # -------------------------
+    # 🔥 REAL USER TEXT
+    # -------------------------
+    free_text = (session.user_text or "").strip()
 
-    # --------------------------------------------------
-    # Run ML Engine
-    # --------------------------------------------------
+    # -------------------------
+    # Run Pipeline
+    # -------------------------
     engine_output = run_pipeline(
         explicit=explicit_vector,
         text=free_text,
@@ -197,9 +203,9 @@ async def create_session(session: SessionIn) -> Dict[str, Any]:
 
     print("🧠 Engine Output:", engine_output)
 
-    # --------------------------------------------------
-    # Statistical Baseline Layer
-    # --------------------------------------------------
+    # -------------------------
+    # Statistical Baseline
+    # -------------------------
     risk = engine_output["risk_score"]
 
     baseline_data = load_baseline()
@@ -215,12 +221,11 @@ async def create_session(session: SessionIn) -> Dict[str, Any]:
     if abs(latency_z) > 2:
         quality_flags.append("latency_outlier")
 
-    # Update baseline AFTER computing z-scores
     update_baseline(risk, avg_latency)
 
-    # --------------------------------------------------
-    # Store Everything
-    # --------------------------------------------------
+    # -------------------------
+    # Store
+    # -------------------------
     session_record = session.model_dump()
     session_record["engine_output"] = engine_output
     session_record["risk_z_score"] = risk_z
@@ -239,7 +244,6 @@ async def create_session(session: SessionIn) -> Dict[str, Any]:
         "latency_z_score": latency_z,
         "quality_flags": quality_flags,
     }
-
 
 @app.get("/health")
 async def health():
