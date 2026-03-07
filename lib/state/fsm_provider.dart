@@ -76,6 +76,11 @@ class FsmNotifier extends StateNotifier<FsmState> {
     final nextId = question.transitions[rating];
     final updatedAnswers = {...state.answers, qId: rating};
 
+    print("DEBUG: Current Q: $qId");
+    print("DEBUG: Rating pressed: $rating");
+    print("DEBUG: Transitions available: ${question.transitions}");
+    print("DEBUG: Next ID resolved to: $nextId");
+
     if (nextId == null || nextId == "end") {
 
       state = state.copyWith(

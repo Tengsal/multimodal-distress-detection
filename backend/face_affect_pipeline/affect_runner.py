@@ -73,39 +73,68 @@ def run_affect_pipeline(face_path: str, voice_path: str):
     p_face = Path(face_path)
     p_voice = Path(voice_path)
 
-    # =====================================================
-    # FACE PROCESSING
-    # =====================================================
+    tracker = TemporalEmotionTracker(window_size=100)
+    sampled_frames = 0
+    stats = None
 
     if p_face.exists():
-        try:
-            frame = cv2.imread(str(p_face))
-            if frame is None:
-                # Small retry delay for potential FS sync
-                import time
-                time.sleep(0.1)
-                frame = cv2.imread(str(p_face))
+        cap = cv2.VideoCapture(str(p_face))
+        if not cap.isOpened():
+            print(f"Failed to open video at: {p_face}")
+        else:
+            fps = cap.get(cv2.CAP_PROP_FPS)
+            if fps <= 0: fps = 30.0 # Fallback
             
-            if frame is not None:
-                faces = detector.detect_faces(frame)
-                if len(faces) > 0:
-                    x, y, w, h, face = faces[0]
-                    emotion_probs = classifier.predict_emotion(face)
-                    if emotion_probs:
-                        v, a = va_calculator.compute(emotion_probs)
-                        d = distress_calculator.compute(v, a)
-                    
-                    landmarks = landmarks_detector.extract_landmarks(face)
-                    if landmarks:
-                        behavior_features = behavior_extractor.compute_features(landmarks)
-                else:
-                    print("No face detected in image")
+            # Sample at ~2 FPS
+            frame_interval = max(1, int(fps // 2))
+            frame_count = 0
+            
+            while True:
+                ret, frame = cap.read()
+                if not ret:
+                    break
+                
+                if frame_count % frame_interval == 0:
+                    faces = detector.detect_faces(frame)
+                    if len(faces) > 0:
+                        x, y, w, h, face = faces[0]
+                        emotion_probs = classifier.predict_emotion(face)
+                        if emotion_probs:
+                            fv, fa = va_calculator.compute(emotion_probs)
+                            fd = distress_calculator.compute(fv, fa)
+                            tracker.update(fv, fa, fd)
+                            
+                            landmarks = landmarks_detector.extract_landmarks(face)
+                            if landmarks:
+                                frame_behavior = behavior_extractor.compute_features(landmarks)
+                                # Accumulate behavior (simple approach: keep last valid)
+                                behavior_features.update(frame_behavior)
+                        
+                        sampled_frames += 1
+                
+                frame_count += 1
+                # Limit to 15s to keep it fast
+                if frame_count > (fps * 16): 
+                    break
+            
+            cap.release()
+            
+            # Get aggregated results
+            stats = tracker.get_temporal_state()
+            if stats:
+                v = stats["valence_avg"]
+                a = stats["arousal_avg"]
+                d = stats["distress_avg"]
+                print(f"Processed {sampled_frames} frames. Mean Distress: {d:.3f}")
             else:
-                print(f"CV2 failed to decode image at: {p_face.resolve()}")
-        except Exception as e:
-            print(f"Face processing error: {e}")
+                print("No faces detected in any sampled frames")
     else:
         print(f"Face file MISSING at: {p_face.resolve()}")
+
+    # -----------------------------------------------------
+    # OPTIONAL: Augment behavior features with durations/variance if needed
+    # For now, we keep the averages to avoid breaking downstream fusion size
+    # -----------------------------------------------------
 
     # =====================================================
     # VOICE PROCESSING
@@ -151,9 +180,10 @@ def run_affect_pipeline(face_path: str, voice_path: str):
             d,
             behavior_features,
             voice_emotion,
-            voice_features
+            voice_features,
+            temporal_stats=stats
         )
         return feature_vector.tolist()
     except Exception as e:
         print(f"Fusion error: {e}")
-        return np.zeros(12).tolist()
+        return np.zeros(16).tolist()
