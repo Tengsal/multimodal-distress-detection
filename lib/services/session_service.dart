@@ -11,7 +11,7 @@ import 'scoring_engine.dart';
 
 class SessionService {
 
-  static const String _baseUrl = "http://192.168.1.5:8000";
+  static const String _baseUrl = "http://127.0.0.1:8000";
   static const String _endpoint = "/sessions";
 
   static const Duration _timeout = Duration(seconds: 30);
@@ -66,8 +66,45 @@ class SessionService {
 
     final uri = Uri.parse("$_baseUrl$_endpoint");
 
-    if (!kIsWeb) {
+    final request = http.MultipartRequest("POST", uri);
 
+    request.fields["session"] = jsonEncode(session.toJson());
+
+    if (kIsWeb) {
+
+      // WEB UPLOAD
+      try {
+        // In Web, paths are often blob: URLs or data: URLs
+        final faceBytes = await http.readBytes(Uri.parse(faceImagePath));
+        final audioBytes = await http.readBytes(Uri.parse(audioPath));
+
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            "face_image",
+            faceBytes,
+            filename: "face.jpg",
+            contentType: MediaType("image", "jpeg"),
+          ),
+        );
+
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            "voice_audio",
+            audioBytes,
+            filename: "voice.wav",
+            contentType: MediaType("audio", "wav"),
+          ),
+        );
+      } catch (e) {
+        throw SessionSubmitException(
+          "Web media loading failed ($e). "
+          "Make sure file paths are valid URLs/Blobs."
+        );
+      }
+
+    } else {
+
+      // NATIVE VERSION
       final faceFile = File(faceImagePath);
       final audioFile = File(audioPath);
 
@@ -82,27 +119,23 @@ class SessionService {
           "Audio file not found: $audioPath",
         );
       }
+
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          "face_image",
+          faceImagePath,
+          contentType: MediaType("image", "jpeg"),
+        ),
+      );
+
+      request.files.add(
+        await http.MultipartFile.fromPath(
+          "voice_audio",
+          audioPath,
+          contentType: MediaType("audio", "wav"),
+        ),
+      );
     }
-
-    final request = http.MultipartRequest("POST", uri);
-
-    request.fields["session"] = jsonEncode(session.toJson());
-
-    request.files.add(
-      await http.MultipartFile.fromPath(
-        "face_image",
-        faceImagePath,
-        contentType: MediaType("image", "jpeg"),
-      ),
-    );
-
-    request.files.add(
-      await http.MultipartFile.fromPath(
-        "voice_audio",
-        audioPath,
-        contentType: MediaType("audio", "wav"),
-      ),
-    );
 
     try {
 
@@ -121,19 +154,19 @@ class SessionService {
       } else {
 
         throw SessionSubmitException(
-          "Server error ${response.statusCode}\n${response.body}",
+          "Server error ${response.statusCode}: ${response.body}",
         );
 
       }
 
-    } on SocketException {
-
-      throw SessionSubmitException(
-        "Cannot connect to backend ($_baseUrl). "
-        "Make sure FastAPI server is running.",
-      );
-
     } catch (e) {
+
+      if (e is SocketException || e.toString().contains("Connection refused") || e.toString().contains("Failed to fetch")) {
+        throw SessionSubmitException(
+          "Cannot connect to backend ($_baseUrl). "
+          "Check if server is running and CORS is allowed.",
+        );
+      }
 
       throw SessionSubmitException(
         "Network error: $e",

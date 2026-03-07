@@ -195,22 +195,13 @@ async def create_session(
         }
 
     # --------------------------------------------
-    # Explicit questionnaire features
+    # Explicit questionnaire features (All 6 modules)
     # --------------------------------------------
 
-    explicit_vector = [
-        session_obj.module_scores.get("mood").average_score
-        if session_obj.module_scores.get("mood")
-        else 0,
-
-        session_obj.module_scores.get("sleep").average_score
-        if session_obj.module_scores.get("sleep")
-        else 0,
-
-        session_obj.module_scores.get("anxiety").average_score
-        if session_obj.module_scores.get("anxiety")
-        else 0,
-    ]
+    module_averages = {}
+    for mod in ["mood", "anxiety", "social", "sleep", "energy", "cognitive"]:
+        score_obj = session_obj.module_scores.get(mod)
+        module_averages[mod] = score_obj.average_score if score_obj else 0.0
 
     # --------------------------------------------
     # Latency features
@@ -263,7 +254,7 @@ async def create_session(
     # --------------------------------------------
 
     engine_output = run_pipeline(
-        explicit=explicit_vector,
+        explicit=module_averages,
         text=free_text,
         latencies=latencies,
         affect=affect_features,
@@ -272,6 +263,7 @@ async def create_session(
     print("Engine Output:", engine_output)
 
     risk = engine_output["risk_score"]
+    risk_level = engine_output["risk_level"]
 
     # --------------------------------------------
     # Statistical baseline normalization
@@ -314,6 +306,7 @@ async def create_session(
         "status": "ok",
         "session_id": session_obj.session_id,
         "risk_score": risk,
+        "risk_level": risk_level,
         "consistency": engine_output["consistency"],
         "risk_z_score": risk_z,
         "latency_z_score": latency_z,
