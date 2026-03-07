@@ -1,51 +1,52 @@
 from __future__ import annotations
 
 import sys
-from pathlib import Path
-
-# --------------------------------------------------
-# FIX PYTHON PATH (Windows + Uvicorn Safe)
-# --------------------------------------------------
-BASE_DIR = Path(__file__).resolve().parent
-sys.path.append(str(BASE_DIR))
-
 import csv
 import json
-import uuid
+from pathlib import Path
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, status, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
 
-# 🔥 Import ML Engine
-from mental_state_engine.src.main import run_pipeline
+# ------------------------------------------------------------
+# Path setup
+# ------------------------------------------------------------
 
-# 🔥 Import Statistical Baseline Layer
+BASE_DIR = Path(__file__).resolve().parent
+sys.path.append(str(BASE_DIR))
+
+DATA_DIR = BASE_DIR / "data"
+UPLOAD_DIR = BASE_DIR / "uploads"
+
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+SESSIONS_JSON = DATA_DIR / "sessions.json"
+SESSIONS_CSV = DATA_DIR / "sessions.csv"
+
+print("Backend starting...")
+print("Backend path:", BASE_DIR)
+
+# ------------------------------------------------------------
+# ML Engine
+# ------------------------------------------------------------
+
+from mental_state_engine.src.main import run_pipeline
+from face_affect_pipeline.affect_runner import run_affect_pipeline
+
 from baseline_model import (
     update_baseline,
     compute_z_score,
     load_baseline,
 )
 
-# ================================================================
-# DATA PATHS
-# ================================================================
+# ------------------------------------------------------------
+# Pydantic Models
+# ------------------------------------------------------------
 
-DATA_DIR = BASE_DIR / "data"
-SESSIONS_JSON = DATA_DIR / "sessions.json"
-SESSIONS_CSV = DATA_DIR / "sessions.csv"
-
-DATA_DIR.mkdir(parents=True, exist_ok=True)
-
-print("🔥 Backend starting...")
-print("📂 Backend Path:", BASE_DIR)
-
-
-# ================================================================
-# MODELS
-# ================================================================
 
 class SafetyFlagIn(BaseModel):
     code: str
@@ -72,8 +73,8 @@ class ResponseIn(BaseModel):
     answered_at: str
 
 
-
 class SessionIn(BaseModel):
+
     session_id: str
     started_at: str
     completed_at: Optional[str] = None
@@ -82,7 +83,6 @@ class SessionIn(BaseModel):
     total_questions_answered: int
     is_high_risk: bool
 
-    # ✅ ADD THIS
     user_text: Optional[str] = None
 
     safety_flags: List[SafetyFlagIn] = Field(default_factory=list)
@@ -92,15 +92,16 @@ class SessionIn(BaseModel):
     @field_validator("session_id")
     @classmethod
     def validate_uuid(cls, v: str) -> str:
+        import uuid
         uuid.UUID(v)
         return v
 
 
-# ================================================================
-# FASTAPI APP
-# ================================================================
+# ------------------------------------------------------------
+# FastAPI App
+# ------------------------------------------------------------
 
-app = FastAPI(title="Mental Health API")
+app = FastAPI(title="Multimodal Mental Health API")
 
 app.add_middleware(
     CORSMiddleware,
@@ -109,104 +110,172 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ------------------------------------------------------------
+# Storage Helpers
+# ------------------------------------------------------------
 
-# ================================================================
-# STORAGE HELPERS
-# ================================================================
 
-def _append_json(data: dict) -> None:
+def _append_json(data: dict):
+
     data["received_at"] = datetime.utcnow().isoformat()
+
     with open(SESSIONS_JSON, "a", encoding="utf-8") as f:
-        f.write(json.dumps(data, ensure_ascii=False) + "\n")
+        f.write(json.dumps(data) + "\n")
 
 
-def _append_csv(session: SessionIn) -> None:
+def _append_csv(session: SessionIn):
+
     row: Dict[str, Any] = {
         "session_id": session.session_id,
         "started_at": session.started_at,
         "completed_at": session.completed_at or "",
-        "app_version": session.app_version,
         "total_questions": session.total_questions_answered,
         "is_high_risk": int(session.is_high_risk),
         "received_at": datetime.utcnow().isoformat(),
     }
 
-    modules = ["sleep", "mood", "anxiety", "social", "energy", "cognitive"]
-
-    for mod in modules:
-        score = session.module_scores.get(mod)
-        if score:
-            row[f"{mod}_total"] = score.total_score
-            row[f"{mod}_avg"] = round(score.average_score, 3)
-            row[f"{mod}_severity"] = score.severity
-        else:
-            row[f"{mod}_total"] = 0
-            row[f"{mod}_avg"] = 0.0
-            row[f"{mod}_severity"] = "none"
-
     file_exists = SESSIONS_CSV.exists() and SESSIONS_CSV.stat().st_size > 0
 
     with open(SESSIONS_CSV, "a", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=list(row.keys()))
+
+        writer = csv.DictWriter(f, fieldnames=row.keys())
+
         if not file_exists:
             writer.writeheader()
+
         writer.writerow(row)
 
 
-# ================================================================
-# ROUTES
-# ================================================================
+# ------------------------------------------------------------
+# Routes
+# ------------------------------------------------------------
+
 
 @app.post("/sessions", status_code=status.HTTP_201_CREATED)
-async def create_session(session: SessionIn) -> Dict[str, Any]:
+async def create_session(
+    session: str = Form(...),
+    face_image: UploadFile = File(...),
+    voice_audio: UploadFile = File(...),
+) -> Dict[str, Any]:
 
-    print("✅ Session received:", session.session_id)
+    # --------------------------------------------
+    # Parse JSON session
+    # --------------------------------------------
 
-    # -------------------------
-    # Explicit Vector
-    # -------------------------
+    session_data = json.loads(session)
+    session_obj = SessionIn(**session_data)
+
+    print("Session received:", session_obj.session_id)
+
+    # --------------------------------------------
+    # Save uploaded media
+    # --------------------------------------------
+
+    face_path = UPLOAD_DIR / f"{session_obj.session_id}_face.jpg"
+    voice_path = UPLOAD_DIR / f"{session_obj.session_id}_voice.wav"
+
+    try:
+
+        with open(face_path, "wb") as f:
+            f.write(await face_image.read())
+
+        with open(voice_path, "wb") as f:
+            f.write(await voice_audio.read())
+
+        print("Saved face:", face_path)
+        print("Saved voice:", voice_path)
+
+    except Exception as e:
+
+        print("File saving error:", e)
+
+        return {
+            "status": "error",
+            "message": "Failed to save uploaded files"
+        }
+
+    # --------------------------------------------
+    # Explicit questionnaire features
+    # --------------------------------------------
+
     explicit_vector = [
-        session.module_scores.get("mood").average_score if session.module_scores.get("mood") else 0,
-        session.module_scores.get("sleep").average_score if session.module_scores.get("sleep") else 0,
-        session.module_scores.get("anxiety").average_score if session.module_scores.get("anxiety") else 0,
+        session_obj.module_scores.get("mood").average_score
+        if session_obj.module_scores.get("mood")
+        else 0,
+
+        session_obj.module_scores.get("sleep").average_score
+        if session_obj.module_scores.get("sleep")
+        else 0,
+
+        session_obj.module_scores.get("anxiety").average_score
+        if session_obj.module_scores.get("anxiety")
+        else 0,
     ]
 
-    # -------------------------
-    # Latencies
-    # -------------------------
+    # --------------------------------------------
+    # Latency features
+    # --------------------------------------------
+
     latencies = []
     avg_latency = 0
 
-    if session.responses:
-        times = [datetime.fromisoformat(r.answered_at) for r in session.responses]
+    if session_obj.responses:
+
+        times = [datetime.fromisoformat(r.answered_at) for r in session_obj.responses]
 
         for i in range(1, len(times)):
+
             delta = (times[i] - times[i - 1]).total_seconds()
             latencies.append(delta)
 
         if latencies:
             avg_latency = sum(latencies) / len(latencies)
 
-    # -------------------------
-    # 🔥 REAL USER TEXT
-    # -------------------------
-    free_text = (session.user_text or "").strip()
+    # --------------------------------------------
+    # Text input
+    # --------------------------------------------
 
-    # -------------------------
-    # Run Pipeline
-    # -------------------------
+    free_text = (session_obj.user_text or "").strip()
+
+    # --------------------------------------------
+    # Affect pipeline (Face + Voice)
+    # --------------------------------------------
+
+    try:
+
+        affect_features = run_affect_pipeline(
+            str(face_path),
+            str(voice_path)
+        )
+
+        if affect_features is None:
+            affect_features = []
+
+        print("Affect features:", affect_features)
+
+    except Exception as e:
+
+        print("Affect pipeline error:", e)
+        affect_features = []
+
+    # --------------------------------------------
+    # ML risk pipeline
+    # --------------------------------------------
+
     engine_output = run_pipeline(
         explicit=explicit_vector,
         text=free_text,
         latencies=latencies,
+        affect=affect_features,
     )
 
-    print("🧠 Engine Output:", engine_output)
+    print("Engine Output:", engine_output)
 
-    # -------------------------
-    # Statistical Baseline
-    # -------------------------
     risk = engine_output["risk_score"]
+
+    # --------------------------------------------
+    # Statistical baseline normalization
+    # --------------------------------------------
 
     baseline_data = load_baseline()
 
@@ -223,21 +292,27 @@ async def create_session(session: SessionIn) -> Dict[str, Any]:
 
     update_baseline(risk, avg_latency)
 
-    # -------------------------
-    # Store
-    # -------------------------
-    session_record = session.model_dump()
+    # --------------------------------------------
+    # Store results
+    # --------------------------------------------
+
+    session_record = session_obj.model_dump()
+
     session_record["engine_output"] = engine_output
     session_record["risk_z_score"] = risk_z
     session_record["latency_z_score"] = latency_z
     session_record["quality_flags"] = quality_flags
 
     _append_json(session_record)
-    _append_csv(session)
+    _append_csv(session_obj)
+
+    # --------------------------------------------
+    # API response
+    # --------------------------------------------
 
     return {
         "status": "ok",
-        "session_id": session.session_id,
+        "session_id": session_obj.session_id,
         "risk_score": risk,
         "consistency": engine_output["consistency"],
         "risk_z_score": risk_z,
@@ -245,6 +320,11 @@ async def create_session(session: SessionIn) -> Dict[str, Any]:
         "quality_flags": quality_flags,
     }
 
+
 @app.get("/health")
 async def health():
-    return {"status": "ok", "time": datetime.utcnow().isoformat()}
+
+    return {
+        "status": "ok",
+        "time": datetime.utcnow().isoformat(),
+    }

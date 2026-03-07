@@ -1,12 +1,43 @@
+# ----------------------------
+# API
+# ----------------------------
 fastapi
 uvicorn
 pydantic
+
+# ----------------------------
+# Core ML / math
+# ----------------------------
+numpy
+scipy
+pandas
+scikit-learn
+
+# ----------------------------
+# NLP pipeline
+# ----------------------------
 torch
 transformers
-numpy
-scikit-learn
 nltk
 spacy
 vaderSentiment
-pandas
-scipy
+
+# ----------------------------
+# Computer Vision (Face)
+# ----------------------------
+opencv-python
+mediapipe
+deepface
+tensorflow
+
+# ----------------------------
+# Audio processing (Voice)
+# ----------------------------
+librosa
+soundfile
+pyaudio
+
+# ----------------------------
+# Utility
+# ----------------------------
+python-multipart

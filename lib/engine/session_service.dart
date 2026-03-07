@@ -27,7 +27,7 @@ class SessionService {
   // Change this to your FastAPI server address.
   // For local dev: http://localhost:8000
   // For device on same network: http://192.168.x.x:8000
-  static const String _baseUrl = "http://localhost:8000";
+  static const String _baseUrl = "http://192.168.1.5:8000";
   static const String _endpoint = "/sessions";
   static const Duration _timeout = Duration(seconds: 10);
 

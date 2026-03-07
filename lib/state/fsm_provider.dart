@@ -1,9 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/question_bank.dart';
-import '../models/question.dart';
 import '../services/scoring_engine.dart';
-import '../services/session_service.dart';
 
 class FsmState {
   final String? currentQuestionId;
@@ -12,6 +10,7 @@ class FsmState {
   final bool isSubmitting;
   final bool isHighRisk;
   final bool needsText;
+  final String? userText;
   final String? submitError;
 
   const FsmState({
@@ -21,6 +20,7 @@ class FsmState {
     this.isSubmitting = false,
     this.isHighRisk = false,
     this.needsText = false,
+    this.userText,
     this.submitError,
   });
 
@@ -31,6 +31,7 @@ class FsmState {
     bool? isSubmitting,
     bool? isHighRisk,
     bool? needsText,
+    String? userText,
     String? submitError,
   }) {
     return FsmState(
@@ -40,22 +41,24 @@ class FsmState {
       isSubmitting: isSubmitting ?? this.isSubmitting,
       isHighRisk: isHighRisk ?? this.isHighRisk,
       needsText: needsText ?? this.needsText,
+      userText: userText ?? this.userText,
       submitError: submitError,
     );
   }
 }
 
 class FsmNotifier extends StateNotifier<FsmState> {
+
   FsmNotifier() : super(const FsmState(currentQuestionId: "sleep_01"));
 
   final ScoringEngine _engine = ScoringEngine();
-  final DateTime _sessionStart = DateTime.now();
 
   // ─────────────────────────────────────────────
-  // RECORD ANSWER
+  // RECORD QUESTION ANSWER
   // ─────────────────────────────────────────────
 
   Future<void> answer(int rating) async {
+
     final qId = state.currentQuestionId;
     if (qId == null) return;
 
@@ -73,52 +76,47 @@ class FsmNotifier extends StateNotifier<FsmState> {
     final updatedAnswers = {...state.answers, qId: rating};
 
     if (nextId == null || nextId == "end") {
-      // 🚀 DO NOT submit yet
+
       state = state.copyWith(
         answers: updatedAnswers,
         needsText: true,
         isHighRisk: _engine.isHighRisk,
       );
+
     } else {
+
       state = state.copyWith(
         currentQuestionId: nextId,
         answers: updatedAnswers,
         isHighRisk: _engine.isHighRisk,
       );
+
     }
   }
 
   // ─────────────────────────────────────────────
-  // FINAL SUBMIT WITH TEXT
+  // STORE TEXT INPUT
   // ─────────────────────────────────────────────
 
-  Future<void> submitWithText(String text) async {
-    state = state.copyWith(isSubmitting: true);
+  void submitWithText(String text) {
 
-    try {
-      await SessionService.submitSession(
-        engine: _engine,
-        sessionStart: _sessionStart,
-        userText: text,
-      );
+    state = state.copyWith(
+      userText: text,
+      needsText: false,
+      isComplete: true,
+    );
 
-      state = state.copyWith(
-        isSubmitting: false,
-        isComplete: true,
-        needsText: false,
-      );
-    } catch (e) {
-      state = state.copyWith(
-        isSubmitting: false,
-        submitError: e.toString(),
-      );
-    }
   }
+
+  // ─────────────────────────────────────────────
+  // RESET SESSION
+  // ─────────────────────────────────────────────
 
   void reset() {
     _engine.reset();
     state = const FsmState(currentQuestionId: "sleep_01");
   }
+
 }
 
 final fsmProvider =
