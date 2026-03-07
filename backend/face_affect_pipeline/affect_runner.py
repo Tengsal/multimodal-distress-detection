@@ -26,6 +26,7 @@ from features.valence_arousal import ValenceArousalCalculator
 from features.distress_score import DistressScoreCalculator
 from features.facial_behavior import FacialBehaviorExtractor
 from features.feature_fusion import FeatureFusion
+from features.temporal_tracker import TemporalEmotionTracker
 
 # ---------------------------------------------------------
 # Import voice modules

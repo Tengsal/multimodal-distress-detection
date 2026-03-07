@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../state/fsm_provider.dart';
-import 'face_capture_screen.dart';
 
 class TextInputScreen extends ConsumerStatefulWidget {
   const TextInputScreen({super.key});
@@ -72,19 +71,9 @@ class _TextInputScreenState
                       }
 
                       // Store text in FSM
+                      // This will trigger isProbeStage = true which InterviewScreen watches
                       notifier.submitWithText(text);
-
-                      // Move to face capture
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => FaceCaptureScreen(
-                            userText: text,
-                          ),
-                        ),
-                      );
                     },
-
                     child: const Text("Continue"),
                   ),
 
