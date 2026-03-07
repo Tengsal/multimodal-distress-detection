@@ -123,14 +123,21 @@ def _append_json(data: dict):
         f.write(json.dumps(data) + "\n")
 
 
-def _append_csv(session: SessionIn):
+def _append_csv(session: SessionIn, risk_score: float, risk_level: str):
+
+    # Calculate total questions from modules if total_questions_answered is 0
+    total_q = session.total_questions_answered
+    if total_q == 0 and session.module_scores:
+        total_q = sum(m.question_count for m in session.module_scores.values())
 
     row: Dict[str, Any] = {
         "session_id": session.session_id,
         "started_at": session.started_at,
         "completed_at": session.completed_at or "",
-        "total_questions": session.total_questions_answered,
-        "is_high_risk": int(session.is_high_risk),
+        "total_questions": total_q,
+        "risk_score": f"{risk_score:.4f}",
+        "risk_level": risk_level,
+        "is_high_risk": 1 if risk_level == "HIGH" else 0,
         "received_at": datetime.utcnow().isoformat(),
     }
 
@@ -163,6 +170,7 @@ async def create_session(
     # --------------------------------------------
 
     session_data = json.loads(session)
+    print("DEBUG: Raw Session Data:", json.dumps(session_data, indent=2))
     session_obj = SessionIn(**session_data)
 
     print("Session received:", session_obj.session_id)
@@ -285,6 +293,12 @@ async def create_session(
     update_baseline(risk, avg_latency)
 
     # --------------------------------------------
+    # Sync High Risk Flag
+    # --------------------------------------------
+    is_high = (risk_level == "HIGH")
+    session_obj.is_high_risk = is_high
+
+    # --------------------------------------------
     # Store results
     # --------------------------------------------
 
@@ -296,7 +310,7 @@ async def create_session(
     session_record["quality_flags"] = quality_flags
 
     _append_json(session_record)
-    _append_csv(session_obj)
+    _append_csv(session_obj, risk, risk_level)
 
     # --------------------------------------------
     # API response

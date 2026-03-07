@@ -52,6 +52,7 @@ class FsmNotifier extends StateNotifier<FsmState> {
   FsmNotifier() : super(const FsmState(currentQuestionId: "sleep_01"));
 
   final ScoringEngine _engine = ScoringEngine();
+  ScoringEngine get engine => _engine;
 
   // ─────────────────────────────────────────────
   // RECORD QUESTION ANSWER

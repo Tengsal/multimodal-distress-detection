@@ -4,13 +4,15 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
+import '../state/fsm_provider.dart';
 
 import '../services/session_service.dart';
 import '../services/scoring_engine.dart';
 
-class VoiceCaptureScreen extends StatefulWidget {
+class VoiceCaptureScreen extends ConsumerStatefulWidget {
   final String userText;
   final String faceImagePath;
 
@@ -21,10 +23,10 @@ class VoiceCaptureScreen extends StatefulWidget {
   });
 
   @override
-  State<VoiceCaptureScreen> createState() => _VoiceCaptureScreenState();
+  ConsumerState<VoiceCaptureScreen> createState() => _VoiceCaptureScreenState();
 }
 
-class _VoiceCaptureScreenState extends State<VoiceCaptureScreen> {
+class _VoiceCaptureScreenState extends ConsumerState<VoiceCaptureScreen> {
   final AudioRecorder _recorder = AudioRecorder();
 
   bool _isRecording = false;
@@ -121,7 +123,7 @@ class _VoiceCaptureScreenState extends State<VoiceCaptureScreen> {
     try {
 
       await SessionService.submitSession(
-        engine: ScoringEngine(),
+        engine: ref.read(fsmProvider.notifier).engine,
         sessionStart: DateTime.now(),
         userText: widget.userText,
         faceImagePath: widget.faceImagePath,
