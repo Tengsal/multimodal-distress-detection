@@ -110,6 +110,27 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from fastapi.responses import JSONResponse
+import traceback
+from fastapi.exceptions import RequestValidationError
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request, exc):
+    print("VALIDATION ERROR:", exc.errors())
+    return JSONResponse(
+        status_code=422,
+        content={"status": "error", "message": "Validation Error", "details": exc.errors()}
+    )
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request, exc):
+    trace = traceback.format_exc()
+    print("GLOBAL ERROR:", trace)
+    return JSONResponse(
+        status_code=500,
+        content={"status": "error", "message": str(exc), "trace": trace}
+    )
+
 # ------------------------------------------------------------
 # Storage Helpers
 # ------------------------------------------------------------
@@ -165,11 +186,22 @@ async def create_session(
     voice_audio: UploadFile = File(...),
 ) -> Dict[str, Any]:
 
-    # --------------------------------------------
+    # ------------------------------------------------------------
     # Parse JSON session
-    # --------------------------------------------
+    # ------------------------------------------------------------
 
-    session_data = json.loads(session)
+    try:
+        session_data = json.loads(session)
+        # Handle case where flutter multipart request double-escapes the JSON string
+        if isinstance(session_data, str):
+            session_data = json.loads(session_data)
+    except json.JSONDecodeError as e:
+        print("JSON Decode Error string:", repr(session))
+        return {
+            "status": "error",
+            "message": f"Invalid JSON payload: {str(e)}"
+        }
+
     print("DEBUG: Raw Session Data:", json.dumps(session_data, indent=2))
     session_obj = SessionIn(**session_data)
 
@@ -179,8 +211,12 @@ async def create_session(
     # Save uploaded media
     # --------------------------------------------
 
-    face_path = UPLOAD_DIR / f"{session_obj.session_id}_face.jpg"
-    voice_path = UPLOAD_DIR / f"{session_obj.session_id}_voice.wav"
+    # Use extensions from uploaded files
+    face_ext = face_image.filename.split('.')[-1] if face_image.filename and '.' in face_image.filename else "jpg"
+    voice_ext = voice_audio.filename.split('.')[-1] if voice_audio.filename and '.' in voice_audio.filename else "wav"
+
+    face_path = UPLOAD_DIR / f"{session_obj.session_id}_face.{face_ext}"
+    voice_path = UPLOAD_DIR / f"{session_obj.session_id}_voice.{voice_ext}"
 
     try:
 

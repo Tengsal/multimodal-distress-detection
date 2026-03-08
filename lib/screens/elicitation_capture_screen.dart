@@ -4,13 +4,10 @@ import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
-import 'dart:io';
 
 import '../state/fsm_provider.dart';
 import '../data/adaptive_probe_bank.dart';
-import '../services/session_service.dart';
 
 class ElicitationCaptureScreen extends ConsumerStatefulWidget {
   const ElicitationCaptureScreen({super.key});
@@ -21,14 +18,10 @@ class ElicitationCaptureScreen extends ConsumerStatefulWidget {
 
 class _ElicitationCaptureScreenState extends ConsumerState<ElicitationCaptureScreen> {
   CameraController? _cameraController;
-  final AudioRecorder _audioRecorder = AudioRecorder();
   
   bool _isReady = false;
   bool _isRecording = false;
-  bool _isSubmitting = false;
-  
-  String? _videoPath;
-  String? _audioPath;
+  bool _isStopping = false;
 
   @override
   void initState() {
@@ -39,7 +32,7 @@ class _ElicitationCaptureScreenState extends ConsumerState<ElicitationCaptureScr
   Future<void> _initSensors() async {
     try {
       if (!kIsWeb) {
-        await [Permission.camera, Permission.microphone].request();
+        await [Permission.camera].request();
       }
       
       final cameras = await availableCameras();
@@ -53,7 +46,7 @@ class _ElicitationCaptureScreenState extends ConsumerState<ElicitationCaptureScr
       _cameraController = CameraController(
         front,
         ResolutionPreset.medium,
-        enableAudio: false, // We'll record audio separately for better control
+        enableAudio: false, 
       );
       
       await _cameraController!.initialize();
@@ -70,64 +63,46 @@ class _ElicitationCaptureScreenState extends ConsumerState<ElicitationCaptureScr
     if (!_isReady || _isRecording) return;
     
     try {
-      String audioPath;
-      if (kIsWeb) {
-        audioPath = "elicitation_recording.wav";
-      } else {
-        final tempDir = await getTemporaryDirectory();
-        final ts = DateTime.now().millisecondsSinceEpoch;
-        audioPath = "${tempDir.path}/elicitation_$ts.wav";
-      }
-      
-      _audioPath = audioPath;
-      
       await _cameraController!.startVideoRecording();
-      await _audioRecorder.start(const RecordConfig(), path: _audioPath!);
-      
       setState(() => _isRecording = true);
     } catch (e) {
       debugPrint("Start recording error: $e");
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Could not start recording: $e")),
-        );
-      }
     }
   }
 
-  Future<void> _stopAndSubmit() async {
-    if (!_isRecording) return;
+  Future<void> _stopAndProceed() async {
+    if (!_isRecording || _isStopping) return;
     
-    setState(() => _isSubmitting = true);
+    setState(() => _isStopping = true);
     
     try {
       final xFile = await _cameraController!.stopVideoRecording();
-      _videoPath = xFile.path;
-      await _audioRecorder.stop();
       
+      // READ AS BYTES IMMEDIATELY
+      final bytes = await xFile.readAsBytes();
+      
+      if (kIsWeb) {
+        // Workaround: flutter camera_web throws "Cannot add new events after calling close"
+        // if the widget is disposed immediately after stopVideoRecording(). 
+        // We add a tiny delay to let the browser's MediaRecorder finish its internal event stream.
+        await Future.delayed(const Duration(milliseconds: 500));
+      }
+
       final notifier = ref.read(fsmProvider.notifier);
       
-      // Perform submission via notifier
-      await notifier.submitSession(
-        faceImagePath: _videoPath!,
-        audioPath: _audioPath!,
-      );
-      
-      // FINALLY move to complete state
-      notifier.finish();
+      // Save video BYTES and move to VOICE STAGE
+      notifier.saveVideoBytes(bytes);
+
+      // FSM will trigger navigation in InterviewScreen
     } catch (e) {
-      debugPrint("Stop capture error: $e");
-    } finally {
-      if (mounted) {
-        setState(() => _isSubmitting = false);
-      }
+      debugPrint("Stop video error: $e");
+      setState(() => _isStopping = false);
     }
   }
 
   @override
   void dispose() {
     _cameraController?.dispose();
-    _audioRecorder.dispose();
     super.dispose();
   }
 
@@ -186,12 +161,12 @@ class _ElicitationCaptureScreenState extends ConsumerState<ElicitationCaptureScr
                 children: [
                   if (!_isRecording) ...[
                     const Text(
-                      "Final Stage: Behavioral Elicitation",
+                      "Stage 4: Face Expression Capture",
                       style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 12),
                     const Text(
-                      "I will guide you through a few exercises while recording.",
+                      "Look at the camera and follow the expressions.",
                       textAlign: TextAlign.center,
                       style: TextStyle(color: Colors.white70),
                     ),
@@ -203,7 +178,7 @@ class _ElicitationCaptureScreenState extends ConsumerState<ElicitationCaptureScr
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
                       ),
-                      child: const Text("Start Assessment"),
+                      child: const Text("Start Camera Stage"),
                     ),
                   ] else ...[
                     // Active Task Instruction
@@ -214,15 +189,19 @@ class _ElicitationCaptureScreenState extends ConsumerState<ElicitationCaptureScr
                     ),
                     const SizedBox(height: 30),
                     
-                    if (_isSubmitting)
+                    if (_isStopping)
                        const CircularProgressIndicator()
                     else
                       ElevatedButton(
-                        onPressed: () {
-                          final isFinalTask = probe?.transitions[1] == "end";
-                          
-                          if (isFinalTask) {
-                            _stopAndSubmit();
+                        onPressed: () async {
+                          // Check if next is narrative
+                          final nextId = probe?.transitions[1];
+                          if (nextId == "task_narrative") {
+                             // Await bytes capture before answering the probe to avoid unmounting the camera too early
+                             await _stopAndProceed();
+                             if (mounted) {
+                               notifier.answerProbe(1);
+                             }
                           } else {
                              notifier.answerProbe(1);
                           }
@@ -230,7 +209,7 @@ class _ElicitationCaptureScreenState extends ConsumerState<ElicitationCaptureScr
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
                         ),
-                        child: Text(probe?.transitions[1] == "end" ? "Finish & Submit" : "Next Step"),
+                        child: const Text("Next Step"),
                       ),
                   ],
                 ],

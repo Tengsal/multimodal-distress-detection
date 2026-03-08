@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/question_bank.dart';
@@ -19,7 +20,12 @@ class FsmState {
   // ── Phase 3: Adaptive Stages ───────────────────
   final bool isProbeStage;
   final String? currentProbeId;
-  final bool isElicitationStage;
+  final bool isElicitationStage; // Video stage (Smile/Neutral)
+  final bool isVoiceStage;       // Voice stage (Narrative)
+  
+  // ── Phase 4: Byte Buffers ──────────────────────
+  final Uint8List? videoBytes;
+  final Uint8List? audioBytes;
 
   const FsmState({
     this.currentQuestionId,
@@ -34,6 +40,9 @@ class FsmState {
     this.isProbeStage = false,
     this.currentProbeId,
     this.isElicitationStage = false,
+    this.isVoiceStage = false,
+    this.videoBytes,
+    this.audioBytes,
   });
 
   FsmState copyWith({
@@ -49,6 +58,10 @@ class FsmState {
     bool? isProbeStage,
     String? currentProbeId,
     bool? isElicitationStage,
+    bool? isVoiceStage,
+    Uint8List? videoBytes,
+    Uint8List? audioBytes,
+    bool clearError = false,
   }) {
     return FsmState(
       currentQuestionId: currentQuestionId ?? this.currentQuestionId,
@@ -58,11 +71,14 @@ class FsmState {
       isHighRisk: isHighRisk ?? this.isHighRisk,
       needsText: needsText ?? this.needsText,
       userText: userText ?? this.userText,
-      submitError: submitError,
+      submitError: clearError ? null : (submitError ?? this.submitError),
       submitSuccess: submitSuccess ?? this.submitSuccess,
       isProbeStage: isProbeStage ?? this.isProbeStage,
       currentProbeId: currentProbeId ?? this.currentProbeId,
       isElicitationStage: isElicitationStage ?? this.isElicitationStage,
+      isVoiceStage: isVoiceStage ?? this.isVoiceStage,
+      videoBytes: videoBytes ?? this.videoBytes,
+      audioBytes: audioBytes ?? this.audioBytes,
     );
   }
 }
@@ -79,7 +95,6 @@ class FsmNotifier extends StateNotifier<FsmState> {
   // ─────────────────────────────────────────────
 
   Future<void> answer(int rating) async {
-
     final qId = state.currentQuestionId;
     if (qId == null) return;
 
@@ -97,21 +112,17 @@ class FsmNotifier extends StateNotifier<FsmState> {
     final updatedAnswers = {...state.answers, qId: rating};
 
     if (nextId == null || nextId == "end") {
-
       state = state.copyWith(
         answers: updatedAnswers,
         needsText: true,
         isHighRisk: _engine.isHighRisk,
       );
-
     } else {
-
       state = state.copyWith(
         currentQuestionId: nextId,
         answers: updatedAnswers,
         isHighRisk: _engine.isHighRisk,
       );
-
     }
   }
 
@@ -120,8 +131,6 @@ class FsmNotifier extends StateNotifier<FsmState> {
   // ─────────────────────────────────────────────
 
   void submitWithText(String text) {
-    // 1. Store text
-    // 2. Compute highest module to select probe
     final scores = _engine.computeModuleScores();
     String startProbe = "probe_generic_01";
     double maxAvg = 0.0;
@@ -129,7 +138,6 @@ class FsmNotifier extends StateNotifier<FsmState> {
     for (var entry in scores.entries) {
       if (entry.value.averageScore > maxAvg) {
         maxAvg = entry.value.averageScore;
-        // Map module to probe entry point
         if (entry.key == "social") startProbe = "probe_social_01";
         if (entry.key == "mood") startProbe = "probe_mood_01";
         if (entry.key == "anxiety") startProbe = "probe_anxiety_01";
@@ -155,7 +163,6 @@ class FsmNotifier extends StateNotifier<FsmState> {
     final probe = AdaptiveProbeBank.probes[pId];
     if (probe == null) return;
 
-    // We can also record these in the engine for final logging
     _engine.record(
       questionId: pId,
       module: probe.module,
@@ -166,16 +173,30 @@ class FsmNotifier extends StateNotifier<FsmState> {
     final nextId = probe.transitions[rating];
 
     if (nextId == null || nextId == "end") {
-       // Don't auto-complete for probes/tasks to allow screen to handle submission
+       // Handled by UI finish or transition
     } else {
-      // Check if we moved to elicitation
       final isElicitation = nextId.startsWith("task") || nextId.startsWith("elicitation");
+      final isNarrative = nextId == "task_narrative";
+
       state = state.copyWith(
         currentProbeId: nextId,
         isProbeStage: !isElicitation,
-        isElicitationStage: isElicitation,
+        isElicitationStage: isElicitation && !isNarrative,
+        isVoiceStage: isNarrative,
       );
     }
+  }
+
+  void saveVideoBytes(Uint8List bytes) {
+    state = state.copyWith(
+      videoBytes: bytes,
+    );
+  }
+
+  void saveAudioBytes(Uint8List bytes) {
+    state = state.copyWith(
+      audioBytes: bytes,
+    );
   }
 
   void finish() {
@@ -183,6 +204,7 @@ class FsmNotifier extends StateNotifier<FsmState> {
       isComplete: true,
       isProbeStage: false,
       isElicitationStage: false,
+      isVoiceStage: false,
       currentProbeId: null,
     );
   }
@@ -191,19 +213,16 @@ class FsmNotifier extends StateNotifier<FsmState> {
   // SUBMIT SESSION
   // ─────────────────────────────────────────────
 
-  Future<void> submitSession({
-    required String faceImagePath,
-    required String audioPath,
-  }) async {
-    state = state.copyWith(isSubmitting: true, submitError: null, submitSuccess: false);
+  Future<void> submitSession() async {
+    state = state.copyWith(isSubmitting: true, clearError: true, submitSuccess: false);
 
     try {
-      await SessionService.submitSession(
+      await SessionService.submitSessionBytes(
         engine: _engine,
-        sessionStart: DateTime.now(), // Approximate
+        sessionStart: DateTime.now(),
         userText: state.userText ?? "",
-        faceImagePath: faceImagePath,
-        audioPath: audioPath,
+        videoBytes: state.videoBytes!,
+        audioBytes: state.audioBytes!,
       );
       state = state.copyWith(isSubmitting: false, submitSuccess: true);
     } catch (e) {
@@ -211,18 +230,12 @@ class FsmNotifier extends StateNotifier<FsmState> {
     }
   }
 
-  // ─────────────────────────────────────────────
-  // RESET SESSION
-  // ─────────────────────────────────────────────
-
   void reset() {
     _engine.reset();
     state = const FsmState(currentQuestionId: "sleep_01");
   }
-
 }
 
-final fsmProvider =
-    StateNotifierProvider<FsmNotifier, FsmState>(
-  (ref) => FsmNotifier(),
-);
+final fsmProvider = StateNotifierProvider<FsmNotifier, FsmState>((ref) {
+  return FsmNotifier();
+});

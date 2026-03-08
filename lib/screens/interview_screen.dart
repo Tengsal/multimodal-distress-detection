@@ -6,6 +6,7 @@ import '../data/question_bank.dart';
 import 'text_input_screen.dart';
 import 'adaptive_probe_screen.dart';
 import 'elicitation_capture_screen.dart';
+import 'voice_elicitation_screen.dart';
 import '../widgets/likert_scale.dart';
 
 class InterviewScreen extends ConsumerWidget {
@@ -21,6 +22,10 @@ class InterviewScreen extends ConsumerWidget {
     // ─────────────────────────────────────────────
     if (state.isElicitationStage) {
       return const ElicitationCaptureScreen();
+    }
+
+    if (state.isVoiceStage) {
+      return const VoiceElicitationScreen();
     }
 
     // ─────────────────────────────────────────────

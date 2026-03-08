@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io' show File, SocketException;
+import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
@@ -37,6 +38,24 @@ class SessionService {
     return _post(session, faceImagePath, audioPath);
   }
 
+  static Future<Map<String, dynamic>> submitSessionBytes({
+    required ScoringEngine engine,
+    required DateTime sessionStart,
+    required String userText,
+    required Uint8List videoBytes,
+    required Uint8List audioBytes,
+    String appVersion = "1.0.0",
+  }) async {
+    final session = _buildSession(
+      engine: engine,
+      sessionStart: sessionStart,
+      userText: userText,
+      appVersion: appVersion,
+    );
+
+    return _postBytes(session, videoBytes, audioBytes);
+  }
+
   static SessionModel _buildSession({
     required ScoringEngine engine,
     required DateTime sessionStart,
@@ -56,6 +75,51 @@ class SessionService {
       userText: userText,
       appVersion: appVersion,
     );
+  }
+
+  static Future<Map<String, dynamic>> _postBytes(
+    SessionModel session,
+    Uint8List videoBytes,
+    Uint8List audioBytes,
+  ) async {
+    final uri = Uri.parse("$_baseUrl$_endpoint");
+    final request = http.MultipartRequest("POST", uri);
+
+    request.fields["session"] = jsonEncode(session.toJson());
+
+    request.files.add(
+      http.MultipartFile.fromBytes(
+        "face_image",
+        videoBytes,
+        filename: "face.webm",
+        contentType: MediaType("video", "webm"),
+      ),
+    );
+
+    request.files.add(
+      http.MultipartFile.fromBytes(
+        "voice_audio",
+        audioBytes,
+        filename: "voice.wav",
+        contentType: MediaType("audio", "wav"),
+      ),
+    );
+
+    try {
+      final streamedResponse = await request.send().timeout(_timeout);
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      } else {
+        throw SessionSubmitException("Server error ${response.statusCode}: ${response.body}");
+      }
+    } catch (e) {
+      if (e is SocketException || e.toString().contains("Connection refused")) {
+        throw SessionSubmitException("Cannot connect to backend ($_baseUrl).");
+      }
+      throw SessionSubmitException("Network error: $e");
+    }
   }
 
   static Future<Map<String, dynamic>> _post(
@@ -82,8 +146,8 @@ class SessionService {
           http.MultipartFile.fromBytes(
             "face_image",
             faceBytes,
-            filename: "face.jpg",
-            contentType: MediaType("image", "jpeg"),
+            filename: "face.webm",
+            contentType: MediaType("video", "webm"),
           ),
         );
 
@@ -91,8 +155,8 @@ class SessionService {
           http.MultipartFile.fromBytes(
             "voice_audio",
             audioBytes,
-            filename: "voice.wav",
-            contentType: MediaType("audio", "wav"),
+            filename: "voice.webm",
+            contentType: MediaType("audio", "webm"),
           ),
         );
       } catch (e) {
