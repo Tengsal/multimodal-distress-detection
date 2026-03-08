@@ -12,10 +12,10 @@ import 'scoring_engine.dart';
 
 class SessionService {
 
-  static const String _baseUrl = "http://127.0.0.1:8000";
+  static const String _baseUrl = "http://localhost:8080";
   static const String _endpoint = "/sessions";
 
-  static const Duration _timeout = Duration(seconds: 30);
+  static const Duration _timeout = Duration(seconds: 120);
 
   static final _uuid = const Uuid();
 
@@ -155,8 +155,8 @@ class SessionService {
           http.MultipartFile.fromBytes(
             "voice_audio",
             audioBytes,
-            filename: "voice.webm",
-            contentType: MediaType("audio", "webm"),
+            filename: "voice.wav",
+            contentType: MediaType("audio", "wav"),
           ),
         );
       } catch (e) {

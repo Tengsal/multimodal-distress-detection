@@ -10,6 +10,7 @@ import 'package:http/http.dart' as http;
 
 import '../state/fsm_provider.dart';
 import '../data/adaptive_probe_bank.dart';
+import '../services/hardware_sync.dart';
 
 class VoiceElicitationScreen extends ConsumerStatefulWidget {
   const VoiceElicitationScreen({super.key});
@@ -19,7 +20,7 @@ class VoiceElicitationScreen extends ConsumerStatefulWidget {
 }
 
 class _VoiceElicitationScreenState extends ConsumerState<VoiceElicitationScreen> with SingleTickerProviderStateMixin {
-  final AudioRecorder _audioRecorder = AudioRecorder();
+  AudioRecorder? _audioRecorder; // Lazy initialization
   bool _isListening = false;
   bool _isSubmitting = false;
   String? _audioPath;
@@ -33,31 +34,65 @@ class _VoiceElicitationScreenState extends ConsumerState<VoiceElicitationScreen>
       vsync: this,
       duration: const Duration(milliseconds: 1000),
     )..repeat(reverse: true);
+
+    // Proactive cleanup: Release tracks as soon as we enter this stage
+    if (kIsWeb) {
+      HardwareSync.forceReleaseHardware();
+    }
   }
 
   Future<void> _startVoiceRecording() async {
+    if (kIsWeb) {
+      // 2. Cooldown to let browser reconcile media state
+      await Future.delayed(const Duration(milliseconds: 2500));
+    }
+
     try {
-      String audioPath;
-      if (kIsWeb) {
-        audioPath = "elicitation_recording.wav";
-      } else {
+      // 3. Lazy initialization: Avoid creating the recorder until hardware is cleared
+      _audioRecorder?.dispose();
+      _audioRecorder = AudioRecorder();
+
+      String? audioPath;
+      if (!kIsWeb) {
         final tempDir = await getTemporaryDirectory();
         final ts = DateTime.now().millisecondsSinceEpoch;
         audioPath = "${tempDir.path}/elicitation_$ts.wav";
+        _audioPath = audioPath;
       }
       
-      _audioPath = audioPath;
-      await _audioRecorder.start(
+      // Use WAV on Web as well for backend compatibility (librosa needs wav if ffmpeg is missing)
+      await _audioRecorder!.start(
         const RecordConfig(
           encoder: AudioEncoder.wav,
           sampleRate: 16000,
           numChannels: 1,
         ),
-        path: _audioPath!,
+        path: kIsWeb ? "" : _audioPath ?? "",
       );
-      setState(() => _isListening = true);
+      if (mounted) setState(() => _isListening = true);
     } catch (e) {
       debugPrint("Voice recording error: $e");
+      final eStr = e.toString();
+      String userMsg = "Could not start microphone.";
+      
+      if (eStr.contains("NotReadableError")) {
+        userMsg = "Microphone is busy. Please wait 3 seconds and click Start again.";
+      }
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(userMsg),
+            backgroundColor: Colors.red.shade800,
+            duration: const Duration(seconds: 5),
+            action: SnackBarAction(
+              label: "Retry",
+              textColor: Colors.white,
+              onPressed: _startVoiceRecording,
+            ),
+          ),
+        );
+      }
     }
   }
 
@@ -67,8 +102,11 @@ class _VoiceElicitationScreenState extends ConsumerState<VoiceElicitationScreen>
     setState(() => _isSubmitting = true);
     
     try {
-      final path = await _audioRecorder.stop();
-      if (path == null) return;
+      final path = await _audioRecorder?.stop();
+      if (path == null) {
+        setState(() => _isSubmitting = false);
+        return;
+      }
       
       if (kIsWeb) {
         // Workaround: Prevent web streams from crashing if disposed immediately.
@@ -94,6 +132,14 @@ class _VoiceElicitationScreenState extends ConsumerState<VoiceElicitationScreen>
       notifier.finish();
     } catch (e) {
       debugPrint("Final submission error: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Submission failed: $e"),
+            backgroundColor: Colors.orange.shade900,
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -101,7 +147,7 @@ class _VoiceElicitationScreenState extends ConsumerState<VoiceElicitationScreen>
 
   @override
   void dispose() {
-    _audioRecorder.dispose();
+    _audioRecorder?.dispose();
     _pulseController.dispose();
     super.dispose();
   }

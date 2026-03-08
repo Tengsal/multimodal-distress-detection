@@ -81,11 +81,13 @@ class _ElicitationCaptureScreenState extends ConsumerState<ElicitationCaptureScr
       // READ AS BYTES IMMEDIATELY
       final bytes = await xFile.readAsBytes();
       
+      // Release hardware IMMEDIATELY
+      await _cameraController?.dispose();
+      _cameraController = null;
+
       if (kIsWeb) {
-        // Workaround: flutter camera_web throws "Cannot add new events after calling close"
-        // if the widget is disposed immediately after stopVideoRecording(). 
-        // We add a tiny delay to let the browser's MediaRecorder finish its internal event stream.
-        await Future.delayed(const Duration(milliseconds: 500));
+        // Workaround: allow browser some time to reconcile media tracks
+        await Future.delayed(const Duration(milliseconds: 1500));
       }
 
       final notifier = ref.read(fsmProvider.notifier);

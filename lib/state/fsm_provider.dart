@@ -273,12 +273,11 @@ class FsmNotifier extends StateNotifier<FsmState> {
       );
 
     } catch (e) {
-
       state = state.copyWith(
         isSubmitting: false,
         submitError: e.toString(),
       );
-
+      rethrow;
     }
   }
 

@@ -14,35 +14,31 @@ FACE_MODULE_DIR = BASE_DIR / "face_module"
 if str(FACE_MODULE_DIR) not in sys.path:
     sys.path.append(str(FACE_MODULE_DIR))
 
-# ---------------------------------------------------------
-# Import face modules
-# ---------------------------------------------------------
-
-from detection.face_detector import FaceDetector
-from alignment.face_landmarks import FaceLandmarks
-from emotion_model.emotion_classifier import EmotionClassifier
-
-from features.valence_arousal import ValenceArousalCalculator
-from features.distress_score import DistressScoreCalculator
-from features.facial_behavior import FacialBehaviorExtractor
-from features.feature_fusion import FeatureFusion
-from features.temporal_tracker import TemporalEmotionTracker
-
-# ---------------------------------------------------------
-# Import voice modules
-# ---------------------------------------------------------
-
-from voice_module.features.mfcc_extractor import MFCCExtractor
-from voice_module.features.pitch_extractor import PitchExtractor
-from voice_module.features.jitter_shimmer import JitterShimmerExtractor
-from voice_module.voice_emotion_model import VoiceEmotionModel
-
-
 # =========================================================
 # Multimodal Affect Pipeline
 # =========================================================
 
 def run_affect_pipeline(face_path: str, voice_path: str):
+    # ---------------------------------------------------------
+    # Lazy imports for face modules
+    # ---------------------------------------------------------
+    from detection.face_detector import FaceDetector
+    from alignment.face_landmarks import FaceLandmarks
+    from emotion_model.emotion_classifier import EmotionClassifier
+
+    from features.valence_arousal import ValenceArousalCalculator
+    from features.distress_score import DistressScoreCalculator
+    from features.facial_behavior import FacialBehaviorExtractor
+    from features.feature_fusion import FeatureFusion
+    from features.temporal_tracker import TemporalEmotionTracker
+
+    # ---------------------------------------------------------
+    # Lazy imports for voice modules
+    # ---------------------------------------------------------
+    from voice_module.features.mfcc_extractor import MFCCExtractor
+    from voice_module.features.pitch_extractor import PitchExtractor
+    from voice_module.features.jitter_shimmer import JitterShimmerExtractor
+    from voice_module.voice_emotion_model import VoiceEmotionModel
 
     detector = FaceDetector()
     landmarks_detector = FaceLandmarks()
