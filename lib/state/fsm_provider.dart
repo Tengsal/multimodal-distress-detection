@@ -17,13 +17,13 @@ class FsmState {
   final String? submitError;
   final bool submitSuccess;
 
-  // ── Phase 3: Adaptive Stages ───────────────────
+  // Adaptive stages
   final bool isProbeStage;
   final String? currentProbeId;
-  final bool isElicitationStage; // Video stage (Smile/Neutral)
-  final bool isVoiceStage;       // Voice stage (Narrative)
-  
-  // ── Phase 4: Byte Buffers ──────────────────────
+  final bool isElicitationStage;
+  final bool isVoiceStage;
+
+  // Media buffers
   final Uint8List? videoBytes;
   final Uint8List? audioBytes;
 
@@ -91,7 +91,7 @@ class FsmNotifier extends StateNotifier<FsmState> {
   ScoringEngine get engine => _engine;
 
   // ─────────────────────────────────────────────
-  // RECORD QUESTION ANSWER
+  // QUESTIONNAIRE ANSWERS
   // ─────────────────────────────────────────────
 
   Future<void> answer(int rating) async {
@@ -112,51 +112,77 @@ class FsmNotifier extends StateNotifier<FsmState> {
     final updatedAnswers = {...state.answers, qId: rating};
 
     if (nextId == null || nextId == "end") {
+
       state = state.copyWith(
         answers: updatedAnswers,
         needsText: true,
         isHighRisk: _engine.isHighRisk,
       );
+
     } else {
+
       state = state.copyWith(
         currentQuestionId: nextId,
         answers: updatedAnswers,
         isHighRisk: _engine.isHighRisk,
       );
+
     }
   }
 
   // ─────────────────────────────────────────────
-  // STORE TEXT INPUT
+  // TEXT INPUT → START ADAPTIVE PROBES
   // ─────────────────────────────────────────────
 
   void submitWithText(String text) {
-    final scores = _engine.computeModuleScores();
-    String startProbe = "probe_generic_01";
-    double maxAvg = 0.0;
 
-    for (var entry in scores.entries) {
-      if (entry.value.averageScore > maxAvg) {
-        maxAvg = entry.value.averageScore;
-        if (entry.key == "social") startProbe = "probe_social_01";
-        if (entry.key == "mood") startProbe = "probe_mood_01";
-        if (entry.key == "anxiety") startProbe = "probe_anxiety_01";
+    final scores = _engine.computeModuleScores();
+
+    // Sort modules by severity
+    List<MapEntry<String, dynamic>> sorted = scores.entries.toList()
+      ..sort((a, b) => b.value.averageScore.compareTo(a.value.averageScore));
+
+    List<String> probeQueue = [];
+
+    // Select top 2 meaningful modules
+    for (var entry in sorted.take(2)) {
+
+      if (entry.value.averageScore >= 2.0) {
+
+        if (entry.key == "social") {
+          probeQueue.add("probe_social_01");
+        }
+
+        if (entry.key == "mood") {
+          probeQueue.add("probe_mood_01");
+        }
+
+        if (entry.key == "anxiety") {
+          probeQueue.add("probe_anxiety_01");
+        }
+
       }
+    }
+
+    // Fallback
+    if (probeQueue.isEmpty) {
+      probeQueue.add("probe_generic_01");
     }
 
     state = state.copyWith(
       userText: text,
       needsText: false,
       isProbeStage: true,
-      currentProbeId: startProbe,
+      currentProbeId: probeQueue.first,
     );
   }
 
   // ─────────────────────────────────────────────
-  // RECORD PROBE ANSWER
+  // PROBE ANSWERS
   // ─────────────────────────────────────────────
 
   void answerProbe(int rating) {
+
     final pId = state.currentProbeId;
     if (pId == null) return;
 
@@ -172,34 +198,39 @@ class FsmNotifier extends StateNotifier<FsmState> {
 
     final nextId = probe.transitions[rating];
 
-    if (nextId == null || nextId == "end") {
-       // Handled by UI finish or transition
-    } else {
-      final isElicitation = nextId.startsWith("task") || nextId.startsWith("elicitation");
-      final isNarrative = nextId == "task_narrative";
+    if (nextId == null || nextId == "end") return;
 
-      state = state.copyWith(
-        currentProbeId: nextId,
-        isProbeStage: !isElicitation,
-        isElicitationStage: isElicitation && !isNarrative,
-        isVoiceStage: isNarrative,
-      );
-    }
+    final isElicitation =
+        nextId.startsWith("task_") || nextId.startsWith("elicitation");
+
+    final isNarrative = nextId == "task_narrative";
+
+    state = state.copyWith(
+      currentProbeId: nextId,
+      isProbeStage: !isElicitation,
+      isElicitationStage: isElicitation && !isNarrative,
+      isVoiceStage: isNarrative,
+    );
   }
 
+  // ─────────────────────────────────────────────
+  // MEDIA STORAGE
+  // ─────────────────────────────────────────────
+
   void saveVideoBytes(Uint8List bytes) {
-    state = state.copyWith(
-      videoBytes: bytes,
-    );
+    state = state.copyWith(videoBytes: bytes);
   }
 
   void saveAudioBytes(Uint8List bytes) {
-    state = state.copyWith(
-      audioBytes: bytes,
-    );
+    state = state.copyWith(audioBytes: bytes);
   }
 
+  // ─────────────────────────────────────────────
+  // FINISH INTERVIEW
+  // ─────────────────────────────────────────────
+
   void finish() {
+
     state = state.copyWith(
       isComplete: true,
       isProbeStage: false,
@@ -207,6 +238,7 @@ class FsmNotifier extends StateNotifier<FsmState> {
       isVoiceStage: false,
       currentProbeId: null,
     );
+
   }
 
   // ─────────────────────────────────────────────
@@ -214,28 +246,58 @@ class FsmNotifier extends StateNotifier<FsmState> {
   // ─────────────────────────────────────────────
 
   Future<void> submitSession() async {
-    state = state.copyWith(isSubmitting: true, clearError: true, submitSuccess: false);
+
+    state = state.copyWith(
+      isSubmitting: true,
+      clearError: true,
+      submitSuccess: false,
+    );
 
     try {
-      await SessionService.submitSessionBytes(
+
+      final result = await SessionService.submitSessionBytes(
         engine: _engine,
         sessionStart: DateTime.now(),
         userText: state.userText ?? "",
         videoBytes: state.videoBytes!,
         audioBytes: state.audioBytes!,
       );
-      state = state.copyWith(isSubmitting: false, submitSuccess: true);
+
+      // Read is_high_risk from backend response to power the helpline escalation card
+      final backendHighRisk = result['risk_level'] == 'HIGH' || result['is_high_risk'] == true;
+
+      state = state.copyWith(
+        isSubmitting: false,
+        submitSuccess: true,
+        isHighRisk: backendHighRisk,
+      );
+
     } catch (e) {
-      state = state.copyWith(isSubmitting: false, submitError: e.toString());
+
+      state = state.copyWith(
+        isSubmitting: false,
+        submitError: e.toString(),
+      );
+
     }
   }
 
+  // ─────────────────────────────────────────────
+  // RESET SESSION
+  // ─────────────────────────────────────────────
+
   void reset() {
+
     _engine.reset();
-    state = const FsmState(currentQuestionId: "sleep_01");
+
+    state = const FsmState(
+      currentQuestionId: "sleep_01",
+    );
+
   }
 }
 
-final fsmProvider = StateNotifierProvider<FsmNotifier, FsmState>((ref) {
+final fsmProvider =
+    StateNotifierProvider<FsmNotifier, FsmState>((ref) {
   return FsmNotifier();
 });
