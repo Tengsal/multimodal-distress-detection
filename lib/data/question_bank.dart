@@ -29,7 +29,7 @@ import '../models/question.dart';
 // ================================================================
 
 class QuestionBank {
-  static Map<String, Question> questions = {
+  static const Map<String, Question> questions = {
 
     // ============================================================
     //  MODULE 1 · SLEEP  (sleep_01–16, 4 features)
@@ -38,7 +38,7 @@ class QuestionBank {
     // ── Feature 1: Sleep Onset ───────────────────────────────────
 
     /// ENTRY — general sleep gate
-    "sleep_01": Question(
+    "sleep_01": const Question(
       id: "sleep_01",
       module: "sleep",
       text: "I have been having trouble sleeping.",
@@ -51,7 +51,7 @@ class QuestionBank {
       },
     ),
 
-    "sleep_02": Question(
+    "sleep_02": const Question(
       id: "sleep_02",
       module: "sleep",
       text: "I struggle to fall asleep when I first get into bed.",
@@ -64,7 +64,7 @@ class QuestionBank {
       },
     ),
 
-    "sleep_03": Question(
+    "sleep_03": const Question(
       id: "sleep_03",
       module: "sleep",
       text: "Thoughts race through my mind and prevent me from falling asleep.",
@@ -77,7 +77,7 @@ class QuestionBank {
       },
     ),
 
-    "sleep_04": Question(
+    "sleep_04": const Question(
       id: "sleep_04",
       module: "sleep",
       text: "I feel anxious or tense when I get into bed at night.",
@@ -92,7 +92,7 @@ class QuestionBank {
 
     // ── Feature 2: Sleep Maintenance ────────────────────────────
 
-    "sleep_05": Question(
+    "sleep_05": const Question(
       id: "sleep_05",
       module: "sleep",
       text: "I wake up multiple times during the night.",
@@ -105,7 +105,7 @@ class QuestionBank {
       },
     ),
 
-    "sleep_06": Question(
+    "sleep_06": const Question(
       id: "sleep_06",
       module: "sleep",
       text: "I wake up much earlier than I intend to and cannot fall back asleep.",
@@ -118,7 +118,7 @@ class QuestionBank {
       },
     ),
 
-    "sleep_07": Question(
+    "sleep_07": const Question(
       id: "sleep_07",
       module: "sleep",
       text: "I have disturbing dreams or nightmares that interrupt my sleep.",
@@ -131,7 +131,7 @@ class QuestionBank {
       },
     ),
 
-    "sleep_08": Question(
+    "sleep_08": const Question(
       id: "sleep_08",
       module: "sleep",
       text: "Physical discomfort such as pain or needing to use the bathroom wakes me up.",
@@ -146,7 +146,7 @@ class QuestionBank {
 
     // ── Feature 3: Sleep Quality / Restoration ───────────────────
 
-    "sleep_09": Question(
+    "sleep_09": const Question(
       id: "sleep_09",
       module: "sleep",
       text: "I feel unrefreshed and tired even after a full night's sleep.",
@@ -159,7 +159,7 @@ class QuestionBank {
       },
     ),
 
-    "sleep_10": Question(
+    "sleep_10": const Question(
       id: "sleep_10",
       module: "sleep",
       text: "I experience significant daytime sleepiness that affects my functioning.",
@@ -172,7 +172,7 @@ class QuestionBank {
       },
     ),
 
-    "sleep_11": Question(
+    "sleep_11": const Question(
       id: "sleep_11",
       module: "sleep",
       text: "Poor sleep noticeably worsens my mood, patience, or ability to concentrate.",
@@ -187,7 +187,7 @@ class QuestionBank {
 
     // ── Feature 4: Circadian Rhythm / Sleep Schedule ─────────────
 
-    "sleep_12": Question(
+    "sleep_12": const Question(
       id: "sleep_12",
       module: "sleep",
       text: "My sleep and wake times vary greatly from day to day.",
@@ -200,7 +200,7 @@ class QuestionBank {
       },
     ),
 
-    "sleep_13": Question(
+    "sleep_13": const Question(
       id: "sleep_13",
       module: "sleep",
       text: "I often stay up much later than I intend to.",
@@ -213,7 +213,7 @@ class QuestionBank {
       },
     ),
 
-    "sleep_14": Question(
+    "sleep_14": const Question(
       id: "sleep_14",
       module: "sleep",
       text: "I use screens or devices in bed immediately before trying to sleep.",
@@ -226,7 +226,7 @@ class QuestionBank {
       },
     ),
 
-    "sleep_15": Question(
+    "sleep_15": const Question(
       id: "sleep_15",
       module: "sleep",
       text: "I use alcohol, medication, or other substances to help me fall asleep.",
@@ -239,7 +239,7 @@ class QuestionBank {
       },
     ),
 
-    "sleep_16": Question(
+    "sleep_16": const Question(
       id: "sleep_16",
       module: "sleep",
       text: "My sleep problems have significantly disrupted my work, relationships, or quality of life.",
@@ -259,7 +259,7 @@ class QuestionBank {
     // ── Feature 5: Depressed Mood ────────────────────────────────
 
     /// ENTRY — general mood gate
-    "mood_01": Question(
+    "mood_01": const Question(
       id: "mood_01",
       module: "mood",
       text: "I have been feeling persistently sad, empty, or low.",
@@ -272,7 +272,7 @@ class QuestionBank {
       },
     ),
 
-    "mood_02": Question(
+    "mood_02": const Question(
       id: "mood_02",
       module: "mood",
       text: "My low mood is present for most of the day, nearly every day.",
@@ -285,7 +285,7 @@ class QuestionBank {
       },
     ),
 
-    "mood_03": Question(
+    "mood_03": const Question(
       id: "mood_03",
       module: "mood",
       text: "I feel tearful or emotionally numb without a clear external reason.",
@@ -298,7 +298,7 @@ class QuestionBank {
       },
     ),
 
-    "mood_04": Question(
+    "mood_04": const Question(
       id: "mood_04",
       module: "mood",
       text: "My low mood has persisted for several weeks rather than just a few days.",
@@ -313,7 +313,7 @@ class QuestionBank {
 
     // ── Feature 6: Anhedonia (Loss of Interest / Pleasure) ───────
 
-    "mood_05": Question(
+    "mood_05": const Question(
       id: "mood_05",
       module: "mood",
       text: "I have lost interest in hobbies or activities I used to enjoy.",
@@ -326,7 +326,7 @@ class QuestionBank {
       },
     ),
 
-    "mood_06": Question(
+    "mood_06": const Question(
       id: "mood_06",
       module: "mood",
       text: "I no longer look forward to things the way I once did.",
@@ -339,7 +339,7 @@ class QuestionBank {
       },
     ),
 
-    "mood_07": Question(
+    "mood_07": const Question(
       id: "mood_07",
       module: "mood",
       text: "Even when I do things I used to enjoy, I feel little or no pleasure.",
@@ -352,7 +352,7 @@ class QuestionBank {
       },
     ),
 
-    "mood_08": Question(
+    "mood_08": const Question(
       id: "mood_08",
       module: "mood",
       text: "I have withdrawn from social activities because they feel meaningless or joyless.",
@@ -367,7 +367,7 @@ class QuestionBank {
 
     // ── Feature 7: Hopelessness / Pessimism ──────────────────────
 
-    "mood_09": Question(
+    "mood_09": const Question(
       id: "mood_09",
       module: "mood",
       text: "I feel hopeless about the future.",
@@ -380,7 +380,7 @@ class QuestionBank {
       },
     ),
 
-    "mood_10": Question(
+    "mood_10": const Question(
       id: "mood_10",
       module: "mood",
       text: "I find it very hard to imagine things getting better.",
@@ -393,7 +393,7 @@ class QuestionBank {
       },
     ),
 
-    "mood_11": Question(
+    "mood_11": const Question(
       id: "mood_11",
       module: "mood",
       text: "I feel like a burden to the people around me.",
@@ -406,7 +406,7 @@ class QuestionBank {
       },
     ),
 
-    "mood_12": Question(
+    "mood_12": const Question(
       id: "mood_12",
       module: "mood",
       text: "I have given up on goals or plans that once mattered to me.",
@@ -421,7 +421,7 @@ class QuestionBank {
 
     // ── Feature 8: Self-Worth / Guilt ────────────────────────────
 
-    "mood_13": Question(
+    "mood_13": const Question(
       id: "mood_13",
       module: "mood",
       text: "I feel worthless or like I am a failure.",
@@ -434,7 +434,7 @@ class QuestionBank {
       },
     ),
 
-    "mood_14": Question(
+    "mood_14": const Question(
       id: "mood_14",
       module: "mood",
       text: "I blame myself excessively for things that go wrong.",
@@ -447,7 +447,7 @@ class QuestionBank {
       },
     ),
 
-    "mood_15": Question(
+    "mood_15": const Question(
       id: "mood_15",
       module: "mood",
       text: "I feel deep shame about who I am or things I have done.",
@@ -460,7 +460,7 @@ class QuestionBank {
       },
     ),
 
-    "mood_16": Question(
+    "mood_16": const Question(
       id: "mood_16",
       module: "mood",
       text: "My sense of self-worth depends heavily on the approval of others.",
@@ -473,7 +473,7 @@ class QuestionBank {
       },
     ),
 
-    "mood_17": Question(
+    "mood_17": const Question(
       id: "mood_17",
       module: "mood",
       text: "I have been excessively self-critical in ways that feel difficult to control.",
@@ -488,7 +488,7 @@ class QuestionBank {
 
     // ── Feature 9: Suicidal / Self-Harm Ideation ─────────────────
 
-    "mood_18": Question(
+    "mood_18": const Question(
       id: "mood_18",
       module: "mood",
       text: "I have had thoughts that life is not worth living.",
@@ -501,7 +501,7 @@ class QuestionBank {
       },
     ),
 
-    "mood_19": Question(
+    "mood_19": const Question(
       id: "mood_19",
       module: "mood",
       text: "I have had thoughts about harming myself or ending my life.",
@@ -514,7 +514,7 @@ class QuestionBank {
       },
     ),
 
-    "mood_20": Question(
+    "mood_20": const Question(
       id: "mood_20",
       module: "mood",
       text: "These thoughts have been frequent or very difficult to dismiss.",
@@ -527,7 +527,7 @@ class QuestionBank {
       },
     ),
 
-    "mood_21": Question(
+    "mood_21": const Question(
       id: "mood_21",
       module: "mood",
       text: "I have made or thought about making a specific plan related to self-harm.",
@@ -540,7 +540,7 @@ class QuestionBank {
       },
     ),
 
-    "mood_22": Question(
+    "mood_22": const Question(
       id: "mood_22",
       module: "mood",
       text: "I have spoken to a friend, family member, or professional about these thoughts.",
@@ -560,7 +560,7 @@ class QuestionBank {
     // ── Feature 10: General Anxiety / Tension ────────────────────
 
     /// ENTRY — general anxiety gate
-    "anxiety_01": Question(
+    "anxiety_01": const Question(
       id: "anxiety_01",
       module: "anxiety",
       text: "I feel tense, on edge, or keyed up.",
@@ -573,7 +573,7 @@ class QuestionBank {
       },
     ),
 
-    "anxiety_02": Question(
+    "anxiety_02": const Question(
       id: "anxiety_02",
       module: "anxiety",
       text: "I find it hard to relax even when there is no immediate pressure.",
@@ -586,7 +586,7 @@ class QuestionBank {
       },
     ),
 
-    "anxiety_03": Question(
+    "anxiety_03": const Question(
       id: "anxiety_03",
       module: "anxiety",
       text: "I feel restless and have difficulty sitting still.",
@@ -599,7 +599,7 @@ class QuestionBank {
       },
     ),
 
-    "anxiety_04": Question(
+    "anxiety_04": const Question(
       id: "anxiety_04",
       module: "anxiety",
       text: "I am easily startled or feel unusually jumpy.",
@@ -612,7 +612,7 @@ class QuestionBank {
       },
     ),
 
-    "anxiety_05": Question(
+    "anxiety_05": const Question(
       id: "anxiety_05",
       module: "anxiety",
       text: "My anxiety feels constant and very difficult to switch off.",
@@ -627,7 +627,7 @@ class QuestionBank {
 
     // ── Feature 11: Excessive / Uncontrollable Worry ─────────────
 
-    "anxiety_06": Question(
+    "anxiety_06": const Question(
       id: "anxiety_06",
       module: "anxiety",
       text: "I worry excessively about multiple areas of my life at once.",
@@ -640,7 +640,7 @@ class QuestionBank {
       },
     ),
 
-    "anxiety_07": Question(
+    "anxiety_07": const Question(
       id: "anxiety_07",
       module: "anxiety",
       text: "My worries feel out of proportion to the actual situation.",
@@ -653,7 +653,7 @@ class QuestionBank {
       },
     ),
 
-    "anxiety_08": Question(
+    "anxiety_08": const Question(
       id: "anxiety_08",
       module: "anxiety",
       text: "I find it very difficult to stop or control my worrying.",
@@ -666,7 +666,7 @@ class QuestionBank {
       },
     ),
 
-    "anxiety_09": Question(
+    "anxiety_09": const Question(
       id: "anxiety_09",
       module: "anxiety",
       text: "I automatically jump to imagining worst-case scenarios.",
@@ -679,7 +679,7 @@ class QuestionBank {
       },
     ),
 
-    "anxiety_10": Question(
+    "anxiety_10": const Question(
       id: "anxiety_10",
       module: "anxiety",
       text: "Worrying takes up a significant amount of my time and mental energy each day.",
@@ -694,7 +694,7 @@ class QuestionBank {
 
     // ── Feature 12: Physical Anxiety Symptoms ────────────────────
 
-    "anxiety_11": Question(
+    "anxiety_11": const Question(
       id: "anxiety_11",
       module: "anxiety",
       text: "I experience physical symptoms of anxiety such as a racing heart or shortness of breath.",
@@ -707,7 +707,7 @@ class QuestionBank {
       },
     ),
 
-    "anxiety_12": Question(
+    "anxiety_12": const Question(
       id: "anxiety_12",
       module: "anxiety",
       text: "I have had sudden surges of intense, overwhelming fear.",
@@ -720,7 +720,7 @@ class QuestionBank {
       },
     ),
 
-    "anxiety_13": Question(
+    "anxiety_13": const Question(
       id: "anxiety_13",
       module: "anxiety",
       text: "During anxious moments I feel dizzy, nauseous, or physically unwell.",
@@ -733,7 +733,7 @@ class QuestionBank {
       },
     ),
 
-    "anxiety_14": Question(
+    "anxiety_14": const Question(
       id: "anxiety_14",
       module: "anxiety",
       text: "I have experienced panic attacks — sudden overwhelming fear with strong physical symptoms.",
@@ -746,7 +746,7 @@ class QuestionBank {
       },
     ),
 
-    "anxiety_15": Question(
+    "anxiety_15": const Question(
       id: "anxiety_15",
       module: "anxiety",
       text: "My physical anxiety symptoms interfere with my ability to function normally.",
@@ -761,7 +761,7 @@ class QuestionBank {
 
     // ── Feature 13: Avoidance Behavior ───────────────────────────
 
-    "anxiety_16": Question(
+    "anxiety_16": const Question(
       id: "anxiety_16",
       module: "anxiety",
       text: "I avoid situations, places, or activities because they make me anxious.",
@@ -774,7 +774,7 @@ class QuestionBank {
       },
     ),
 
-    "anxiety_17": Question(
+    "anxiety_17": const Question(
       id: "anxiety_17",
       module: "anxiety",
       text: "My avoidance has caused me to miss out on important events or opportunities.",
@@ -787,7 +787,7 @@ class QuestionBank {
       },
     ),
 
-    "anxiety_18": Question(
+    "anxiety_18": const Question(
       id: "anxiety_18",
       module: "anxiety",
       text: "I need reassurance from others to feel comfortable making everyday decisions.",
@@ -800,7 +800,7 @@ class QuestionBank {
       },
     ),
 
-    "anxiety_19": Question(
+    "anxiety_19": const Question(
       id: "anxiety_19",
       module: "anxiety",
       text: "I have developed repetitive rituals or safety behaviors to manage my anxiety.",
@@ -813,7 +813,7 @@ class QuestionBank {
       },
     ),
 
-    "anxiety_20": Question(
+    "anxiety_20": const Question(
       id: "anxiety_20",
       module: "anxiety",
       text: "My anxiety significantly restricts my life or prevents me from doing things I want to do.",
@@ -837,7 +837,7 @@ class QuestionBank {
     // ── Feature 14: Social Connectedness ─────────────────────────
 
     /// ENTRY — reverse scored: connected = skip
-    "social_01": Question(
+    "social_01": const Question(
       id: "social_01",
       module: "social",
       text: "I feel genuinely connected to and supported by the people in my life.",
@@ -850,7 +850,7 @@ class QuestionBank {
       },
     ),
 
-    "social_02": Question(
+    "social_02": const Question(
       id: "social_02",
       module: "social",
       text: "I feel lonely even when I am physically around other people.",
@@ -863,7 +863,7 @@ class QuestionBank {
       },
     ),
 
-    "social_03": Question(
+    "social_03": const Question(
       id: "social_03",
       module: "social",
       text: "I feel like no one truly understands me.",
@@ -876,7 +876,7 @@ class QuestionBank {
       },
     ),
 
-    "social_04": Question(
+    "social_04": const Question(
       id: "social_04",
       module: "social",
       text: "I lack close, meaningful relationships in my life.",
@@ -889,7 +889,7 @@ class QuestionBank {
       },
     ),
 
-    "social_05": Question(
+    "social_05": const Question(
       id: "social_05",
       module: "social",
       text: "My sense of loneliness has been persistent rather than occasional.",
@@ -904,7 +904,7 @@ class QuestionBank {
 
     // ── Feature 15: Social Withdrawal ────────────────────────────
 
-    "social_06": Question(
+    "social_06": const Question(
       id: "social_06",
       module: "social",
       text: "I avoid or withdraw from social gatherings and interactions.",
@@ -917,7 +917,7 @@ class QuestionBank {
       },
     ),
 
-    "social_07": Question(
+    "social_07": const Question(
       id: "social_07",
       module: "social",
       text: "I have been canceling plans and preferring to stay at home alone.",
@@ -930,7 +930,7 @@ class QuestionBank {
       },
     ),
 
-    "social_08": Question(
+    "social_08": const Question(
       id: "social_08",
       module: "social",
       text: "I find it difficult to initiate contact with friends or family.",
@@ -943,7 +943,7 @@ class QuestionBank {
       },
     ),
 
-    "social_09": Question(
+    "social_09": const Question(
       id: "social_09",
       module: "social",
       text: "I feel a sense of relief when social plans are canceled.",
@@ -956,7 +956,7 @@ class QuestionBank {
       },
     ),
 
-    "social_10": Question(
+    "social_10": const Question(
       id: "social_10",
       module: "social",
       text: "People close to me have expressed concern about how much I have been withdrawing.",
@@ -971,7 +971,7 @@ class QuestionBank {
 
     // ── Feature 16: Interpersonal Conflict ───────────────────────
 
-    "social_11": Question(
+    "social_11": const Question(
       id: "social_11",
       module: "social",
       text: "I frequently experience conflict or tension in my relationships.",
@@ -984,7 +984,7 @@ class QuestionBank {
       },
     ),
 
-    "social_12": Question(
+    "social_12": const Question(
       id: "social_12",
       module: "social",
       text: "I find it hard to trust other people.",
@@ -997,7 +997,7 @@ class QuestionBank {
       },
     ),
 
-    "social_13": Question(
+    "social_13": const Question(
       id: "social_13",
       module: "social",
       text: "I feel easily hurt, dismissed, or rejected by others.",
@@ -1010,7 +1010,7 @@ class QuestionBank {
       },
     ),
 
-    "social_14": Question(
+    "social_14": const Question(
       id: "social_14",
       module: "social",
       text: "My relationships tend to be unstable, intense, or unpredictable.",
@@ -1023,7 +1023,7 @@ class QuestionBank {
       },
     ),
 
-    "social_15": Question(
+    "social_15": const Question(
       id: "social_15",
       module: "social",
       text: "I have difficulty expressing my needs or setting healthy boundaries with others.",
@@ -1036,7 +1036,7 @@ class QuestionBank {
       },
     ),
 
-    "social_16": Question(
+    "social_16": const Question(
       id: "social_16",
       module: "social",
       text: "Relationship difficulties significantly affect my overall wellbeing.",
@@ -1056,7 +1056,7 @@ class QuestionBank {
     // ── Feature 17: Fatigue / Energy Levels ──────────────────────
 
     /// ENTRY — fatigue gate
-    "energy_01": Question(
+    "energy_01": const Question(
       id: "energy_01",
       module: "energy",
       text: "I feel physically or mentally exhausted for most of the day.",
@@ -1069,7 +1069,7 @@ class QuestionBank {
       },
     ),
 
-    "energy_02": Question(
+    "energy_02": const Question(
       id: "energy_02",
       module: "energy",
       text: "My energy levels are significantly lower than they used to be.",
@@ -1082,7 +1082,7 @@ class QuestionBank {
       },
     ),
 
-    "energy_03": Question(
+    "energy_03": const Question(
       id: "energy_03",
       module: "energy",
       text: "I feel fatigued even after minimal physical or mental effort.",
@@ -1095,7 +1095,7 @@ class QuestionBank {
       },
     ),
 
-    "energy_04": Question(
+    "energy_04": const Question(
       id: "energy_04",
       module: "energy",
       text: "My fatigue makes it difficult to complete everyday tasks.",
@@ -1108,7 +1108,7 @@ class QuestionBank {
       },
     ),
 
-    "energy_05": Question(
+    "energy_05": const Question(
       id: "energy_05",
       module: "energy",
       text: "I feel physically heavy or as though I am moving through mud.",
@@ -1121,7 +1121,7 @@ class QuestionBank {
       },
     ),
 
-    "energy_06": Question(
+    "energy_06": const Question(
       id: "energy_06",
       module: "energy",
       text: "I have stopped or significantly reduced physical activity because I lack the energy.",
@@ -1134,7 +1134,7 @@ class QuestionBank {
       },
     ),
 
-    "energy_07": Question(
+    "energy_07": const Question(
       id: "energy_07",
       module: "energy",
       text: "My fatigue has no clear physical explanation such as illness or medication.",
@@ -1149,7 +1149,7 @@ class QuestionBank {
 
     // ── Feature 18: Appetite / Physical Wellbeing ────────────────
 
-    "energy_08": Question(
+    "energy_08": const Question(
       id: "energy_08",
       module: "energy",
       text: "My appetite has noticeably increased or decreased recently.",
@@ -1162,7 +1162,7 @@ class QuestionBank {
       },
     ),
 
-    "energy_09": Question(
+    "energy_09": const Question(
       id: "energy_09",
       module: "energy",
       text: "I eat significantly more or less than I used to.",
@@ -1175,7 +1175,7 @@ class QuestionBank {
       },
     ),
 
-    "energy_10": Question(
+    "energy_10": const Question(
       id: "energy_10",
       module: "energy",
       text: "My relationship with food feels out of control or is causing me distress.",
@@ -1188,7 +1188,7 @@ class QuestionBank {
       },
     ),
 
-    "energy_11": Question(
+    "energy_11": const Question(
       id: "energy_11",
       module: "energy",
       text: "I have noticed significant or unwanted changes in my body weight recently.",
@@ -1201,7 +1201,7 @@ class QuestionBank {
       },
     ),
 
-    "energy_12": Question(
+    "energy_12": const Question(
       id: "energy_12",
       module: "energy",
       text: "I tend to skip meals or overeat in response to stress or emotional states.",
@@ -1214,7 +1214,7 @@ class QuestionBank {
       },
     ),
 
-    "energy_13": Question(
+    "energy_13": const Question(
       id: "energy_13",
       module: "energy",
       text: "I experience physical symptoms such as headaches, stomach problems, or body pain when under stress.",
@@ -1227,7 +1227,7 @@ class QuestionBank {
       },
     ),
 
-    "energy_14": Question(
+    "energy_14": const Question(
       id: "energy_14",
       module: "energy",
       text: "I neglect my physical health — diet, exercise, or medical care — because of how I feel emotionally.",
@@ -1247,7 +1247,7 @@ class QuestionBank {
     // ── Feature 19: Concentration / Focus ────────────────────────
 
     /// ENTRY — cognitive gate
-    "cognitive_01": Question(
+    "cognitive_01": const Question(
       id: "cognitive_01",
       module: "cognitive",
       text: "I find it very difficult to concentrate on tasks.",
@@ -1260,7 +1260,7 @@ class QuestionBank {
       },
     ),
 
-    "cognitive_02": Question(
+    "cognitive_02": const Question(
       id: "cognitive_02",
       module: "cognitive",
       text: "My mind wanders frequently, even during important conversations or activities.",
@@ -1273,7 +1273,7 @@ class QuestionBank {
       },
     ),
 
-    "cognitive_03": Question(
+    "cognitive_03": const Question(
       id: "cognitive_03",
       module: "cognitive",
       text: "I frequently have to re-read things or redo tasks because I could not focus the first time.",
@@ -1286,7 +1286,7 @@ class QuestionBank {
       },
     ),
 
-    "cognitive_04": Question(
+    "cognitive_04": const Question(
       id: "cognitive_04",
       module: "cognitive",
       text: "I struggle to stay mentally present during meetings, classes, or conversations.",
@@ -1299,7 +1299,7 @@ class QuestionBank {
       },
     ),
 
-    "cognitive_05": Question(
+    "cognitive_05": const Question(
       id: "cognitive_05",
       module: "cognitive",
       text: "My ability to concentrate feels noticeably worse than it used to be.",
@@ -1312,7 +1312,7 @@ class QuestionBank {
       },
     ),
 
-    "cognitive_06": Question(
+    "cognitive_06": const Question(
       id: "cognitive_06",
       module: "cognitive",
       text: "Poor concentration has negatively affected my work, studies, or important responsibilities.",
@@ -1327,7 +1327,7 @@ class QuestionBank {
 
     // ── Feature 20: Decision-Making / Memory ─────────────────────
 
-    "cognitive_07": Question(
+    "cognitive_07": const Question(
       id: "cognitive_07",
       module: "cognitive",
       text: "I find it hard to make decisions, even relatively minor ones.",
@@ -1340,7 +1340,7 @@ class QuestionBank {
       },
     ),
 
-    "cognitive_08": Question(
+    "cognitive_08": const Question(
       id: "cognitive_08",
       module: "cognitive",
       text: "I frequently second-guess decisions I have already made.",
@@ -1353,7 +1353,7 @@ class QuestionBank {
       },
     ),
 
-    "cognitive_09": Question(
+    "cognitive_09": const Question(
       id: "cognitive_09",
       module: "cognitive",
       text: "My memory feels noticeably worse than it used to be.",
@@ -1366,7 +1366,7 @@ class QuestionBank {
       },
     ),
 
-    "cognitive_10": Question(
+    "cognitive_10": const Question(
       id: "cognitive_10",
       module: "cognitive",
       text: "I forget things I would previously have remembered easily.",
@@ -1379,7 +1379,7 @@ class QuestionBank {
       },
     ),
 
-    "cognitive_11": Question(
+    "cognitive_11": const Question(
       id: "cognitive_11",
       module: "cognitive",
       text: "My thinking feels slow, foggy, or unclear — sometimes called brain fog.",
@@ -1392,7 +1392,7 @@ class QuestionBank {
       },
     ),
 
-    "cognitive_12": Question(
+    "cognitive_12": const Question(
       id: "cognitive_12",
       module: "cognitive",
       text: "Difficulties with thinking, memory, or decisions have significantly impacted my daily life.",
@@ -1406,3 +1406,5 @@ class QuestionBank {
     ),
   };
 }
+
+

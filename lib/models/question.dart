@@ -4,7 +4,7 @@ class Question {
   final String module;
   final Map<int, String> transitions;
 
-  Question({
+  const Question({
     required this.id,
     required this.text,
     required this.module,
