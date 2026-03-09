@@ -1,0 +1,2 @@
+session_id,started_at,completed_at,total_questions,risk_score,risk_level,is_high_risk,received_at
+76fd9583-950c-4810-84ca-15da0996542f,2026-03-10T00:55:43.981,2026-03-10T00:55:43.982,14,0.2254,LOW,0,2026-03-09T19:25:59.237842

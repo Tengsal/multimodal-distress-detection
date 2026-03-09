@@ -41,3 +41,12 @@ pyaudio
 # Utility
 # ----------------------------
 python-multipart
+
+# ----------------------------
+# RAG-CBT & Graphviz
+# ----------------------------
+faiss-cpu
+sentence-transformers
+pdfplumber
+requests
+graphviz

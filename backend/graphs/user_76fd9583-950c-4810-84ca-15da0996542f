@@ -1,0 +1,21 @@
+// Therapeutic Roadmap
+digraph {
+	rankdir=TB size="8,5"
+	node [color=lightblue fontname=Arial shape=box style="rounded,filled"]
+	P [label="PROBLEM
+low" color=salmon]
+	O [label="EXPECTED OUTCOME
+Increased awareness and understanding of their cognitive distortions, Improved ability to challenge and change negative thoughts, Increased resilience and coping skills, Improved overall mood and outlook on life" color=lightgreen]
+	I0 [label="Cognitive-behavioral therapy (CBT) interventions"]
+	P -> I0
+	I0 -> O
+	I1 [label="Expected outcomes: Increased awareness and understanding of their cognitive distortions, Improved ability to challenge and change negative thoughts"]
+	P -> I1
+	I1 -> O
+	I2 [label="Increased resilience and coping skills"]
+	P -> I2
+	I2 -> O
+	I3 [label="Improved overall mood and outlook on life"]
+	P -> I3
+	I3 -> O
+}

@@ -43,6 +43,10 @@ from baseline_model import (
     load_baseline,
 )
 
+# RAG-CBT Module
+from rag_cbt.rag_service import RagService
+from rag_cbt.therapy_graph import TherapyGraph
+
 # ------------------------------------------------------------
 # Pydantic Models
 # ------------------------------------------------------------
@@ -102,6 +106,10 @@ class SessionIn(BaseModel):
 # ------------------------------------------------------------
 
 app = FastAPI(title="Multimodal Mental Health API")
+
+# Initialize RAG Services
+rag_service = RagService()
+therapy_graph = TherapyGraph()
 
 app.add_middleware(
     CORSMiddleware,
@@ -349,6 +357,22 @@ async def create_session(
     _append_csv(session_obj, risk, risk_level)
 
     # --------------------------------------------
+    # RAG-CBT Automated Hook
+    # --------------------------------------------
+    
+    # 1. Prepare mental state for RAG
+    # We use the dominant emotion from engine_output and the calculated risk
+    rag_state = {
+        "emotion": risk_level.lower(), # or engine_output.get("dominant_emotion", "distress")
+        "risk_score": risk,
+        "signals": quality_flags + session_obj.safety_flags if hasattr(session_obj, 'safety_flags') else quality_flags
+    }
+    
+    print(f"RAG: Automatically generating therapy plan for session {session_obj.session_id}")
+    therapy_plan = rag_service.generate_therapy_plan(rag_state)
+    graph_path = therapy_graph.generate_roadmap(session_obj.session_id, therapy_plan)
+
+    # --------------------------------------------
     # API response
     # --------------------------------------------
 
@@ -361,6 +385,36 @@ async def create_session(
         "risk_z_score": risk_z,
         "latency_z_score": latency_z,
         "quality_flags": quality_flags,
+        "therapy_plan": therapy_plan,
+        "graph_path": graph_path
+    }
+
+
+class MentalStateIn(BaseModel):
+    emotion: str
+    risk_score: float
+    signals: List[str] = Field(default_factory=list)
+    session_id: Optional[str] = None
+
+
+@app.post("/generate-therapy-plan")
+async def generate_therapy_plan(state: MentalStateIn):
+    """
+    Direct endpoint for RAG CBT plan generation.
+    """
+    print(f"RAG: Generating therapy plan for emotion={state.emotion}")
+    
+    # 1. Generate JSON Plan
+    therapy_plan = rag_service.generate_therapy_plan(state.model_dump())
+    
+    # 2. Generate Visual Roadmap
+    session_id = state.session_id or datetime.utcnow().strftime("%Y%m%d%H%M%S")
+    graph_path = therapy_graph.generate_roadmap(session_id, therapy_plan)
+    
+    return {
+        "status": "ok",
+        "therapy_plan": therapy_plan,
+        "graph_path": graph_path
     }
 
 

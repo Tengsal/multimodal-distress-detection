@@ -26,6 +26,10 @@ class FsmState {
   // Media buffers
   final Uint8List? videoBytes;
   final Uint8List? audioBytes;
+  
+  // RAG-CBT Results
+  final Map<String, dynamic>? therapyPlan;
+  final String? graphPath;
 
   const FsmState({
     this.currentQuestionId,
@@ -43,6 +47,8 @@ class FsmState {
     this.isVoiceStage = false,
     this.videoBytes,
     this.audioBytes,
+    this.therapyPlan,
+    this.graphPath,
   });
 
   FsmState copyWith({
@@ -61,6 +67,8 @@ class FsmState {
     bool? isVoiceStage,
     Uint8List? videoBytes,
     Uint8List? audioBytes,
+    Map<String, dynamic>? therapyPlan,
+    String? graphPath,
     bool clearError = false,
   }) {
     return FsmState(
@@ -79,6 +87,8 @@ class FsmState {
       isVoiceStage: isVoiceStage ?? this.isVoiceStage,
       videoBytes: videoBytes ?? this.videoBytes,
       audioBytes: audioBytes ?? this.audioBytes,
+      therapyPlan: therapyPlan ?? this.therapyPlan,
+      graphPath: graphPath ?? this.graphPath,
     );
   }
 }
@@ -270,6 +280,8 @@ class FsmNotifier extends StateNotifier<FsmState> {
         isSubmitting: false,
         submitSuccess: true,
         isHighRisk: backendHighRisk,
+        therapyPlan: result['therapy_plan'],
+        graphPath: result['graph_path'],
       );
 
     } catch (e) {

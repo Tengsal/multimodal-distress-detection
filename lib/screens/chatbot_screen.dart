@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../state/fsm_provider.dart';
 import '../data/chatbot_responses.dart';
 
 class ChatMessage {
@@ -14,14 +16,14 @@ class ChatMessage {
   }) : timestamp = timestamp ?? DateTime.now();
 }
 
-class ChatbotScreen extends StatefulWidget {
+class ChatbotScreen extends ConsumerStatefulWidget {
   const ChatbotScreen({super.key});
 
   @override
-  State<ChatbotScreen> createState() => _ChatbotScreenState();
+  ConsumerState<ChatbotScreen> createState() => _ChatbotScreenState();
 }
 
-class _ChatbotScreenState extends State<ChatbotScreen> {
+class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final List<ChatMessage> _messages = [];
@@ -32,7 +34,22 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     super.initState();
     // Initial greeting
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _addBotMessage(ChatbotEngine.greeting);
+      final fsm = ref.read(fsmProvider);
+      
+      if (fsm.therapyPlan != null) {
+        final plan = fsm.therapyPlan!;
+        final problem = plan['problem'] ?? 'your concerns';
+        final interventions = (plan['intervention'] as List?)?.join(", ") ?? 'CBT exercises';
+        
+        _addBotMessage("Based on your session, I've prepared a therapeutic plan for **$problem**.");
+        _addBotMessage("We'll focus on: **$interventions**.");
+        
+        if (fsm.graphPath != null) {
+          _addBotMessage("I've also generated a visual roadmap for your therapy journey. You can see it below.");
+        }
+      } else {
+        _addBotMessage(ChatbotEngine.greeting);
+      }
     });
   }
 
@@ -177,7 +194,21 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                 if (_isTyping && index == _messages.length) {
                   return _TypingIndicator();
                 }
-                return _MessageBubble(message: _messages[index]);
+                
+                final message = _messages[index];
+                final fsm = ref.watch(fsmProvider);
+                
+                // If it's the specific invitation for the graph, show the image
+                if (!message.isUser && message.text.contains("visual roadmap") && fsm.graphPath != null) {
+                  return Column(
+                    children: [
+                      _MessageBubble(message: message),
+                      _GraphRoadmap(path: fsm.graphPath!),
+                    ],
+                  );
+                }
+                
+                return _MessageBubble(message: message);
               },
             ),
           ),
@@ -387,6 +418,72 @@ class _TypingIndicatorState extends State<_TypingIndicator>
                   },
                 );
               }),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GraphRoadmap extends StatelessWidget {
+  final String path;
+  const _GraphRoadmap({required this.path});
+
+  @override
+  Widget build(BuildContext context) {
+    // Note: Use your server's IP, e.g., http://localhost:8080/
+    final imageUrl = "http://localhost:8080/$path";
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 40, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          const Padding(
+            padding: EdgeInsets.all(8.0),
+            child: Text(
+              "Therapy Roadmap",
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1A73E8),
+              ),
+            ),
+          ),
+          ClipRRect(
+            borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
+            child: Image.network(
+              imageUrl,
+              loadingBuilder: (context, child, loadingProgress) {
+                if (loadingProgress == null) return child;
+                return const Padding(
+                  padding: EdgeInsets.all(20.0),
+                  child: CircularProgressIndicator(),
+                );
+              },
+              errorBuilder: (context, error, stackTrace) {
+                return const Padding(
+                  padding: EdgeInsets.all(20.0),
+                  child: Column(
+                    children: [
+                      Icon(Icons.image_not_supported_rounded, color: Colors.grey, size: 40),
+                      SizedBox(height: 8),
+                      Text("Roadmap image ready on server.", 
+                        style: TextStyle(fontSize: 10, color: Colors.grey)),
+                    ],
+                  ),
+                );
+              },
             ),
           ),
         ],
