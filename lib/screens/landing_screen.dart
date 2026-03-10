@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'interview_screen.dart';
+import 'chatbot_screen.dart';
 
 class LandingScreen extends StatefulWidget {
   const LandingScreen({super.key});
@@ -28,7 +30,7 @@ class _LandingScreenState extends State<LandingScreen>
     );
 
     _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.15),
+      begin: const Offset(0, 0.12),
       end: Offset.zero,
     ).animate(CurvedAnimation(
       parent: _controller,
@@ -52,7 +54,7 @@ class _LandingScreenState extends State<LandingScreen>
       backgroundColor: Colors.white,
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
           child: SlideTransition(
             position: _slideAnimation,
             child: FadeTransition(
@@ -60,55 +62,71 @@ class _LandingScreenState extends State<LandingScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const SizedBox(height: 48),
+                  const SizedBox(height: 40),
+                  // ── Logo icon ──────────────────────────────────────
                   Container(
                     height: 56,
                     width: 56,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF3F4F6), // Smooth light gray
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: const Color(0xFFE5E7EB),
-                        width: 1,
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF818CF8), Color(0xFF6366F1)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
                       ),
+                      borderRadius: BorderRadius.circular(18),
                     ),
                     alignment: Alignment.center,
                     child: const Icon(
                       Icons.spa_outlined,
-                      color: Color(0xFF111827),
+                      color: Colors.white,
                       size: 28,
                     ),
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 28),
+                  // ── Heading ────────────────────────────────────────
                   Text(
                     'Mental Health\nCheck-In.',
                     style: theme.textTheme.headlineMedium?.copyWith(
                       color: const Color(0xFF111827),
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
                   Text(
-                    'A short, adaptive screening to understand how you have been feeling recently. Designed for clarity and ease.',
+                    'A short, adaptive screening to understand how you have been feeling recently.',
                     style: theme.textTheme.titleMedium,
                   ),
-                  const SizedBox(height: 48),
-                  _buildListItem(
+                  const SizedBox(height: 36),
+                  // ── Feature cards ──────────────────────────────────
+                  _buildFeatureCard(
                     Icons.speed_rounded,
                     'Adaptive flow',
-                    'Typically 20-30 brief prompts.',
+                    'Typically 20-30 brief prompts tailored to your answers.',
+                    const Color(0xFFF0F9FF),
+                    const Color(0xFF0369A1),
                   ),
-                  const SizedBox(height: 24),
-                  _buildListItem(
+                  const SizedBox(height: 12),
+                  _buildFeatureCard(
+                    Icons.mic_none_rounded,
+                    'Voice & video',
+                    'Optional voice and facial expression capture for deeper analysis.',
+                    const Color(0xFFFAF5FF),
+                    const Color(0xFF7C3AED),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildFeatureCard(
                     Icons.edit_note_rounded,
                     'Optional notes',
                     'Add a free-text reflection at the end.',
+                    const Color(0xFFF0FDF4),
+                    const Color(0xFF166534),
                   ),
                   const Spacer(),
+                  // ── CTA Buttons ────────────────────────────────────
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
                       onPressed: () {
-                        // Subtle exit before navigation
+                        HapticFeedback.lightImpact();
                         _controller.reverse().then((_) {
                           Navigator.of(context).pushReplacement(
                             PageRouteBuilder(
@@ -124,7 +142,45 @@ class _LandingScreenState extends State<LandingScreen>
                       child: const Text('Start Screening'),
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
+                  // ── Chatbot shortcut ───────────────────────────────
+                  SizedBox(
+                    width: double.infinity,
+                    child: TextButton(
+                      onPressed: () {
+                        HapticFeedback.lightImpact();
+                        Navigator.of(context).push(
+                          PageRouteBuilder(
+                            pageBuilder: (context, animation, secondaryAnimation) =>
+                                const ChatbotScreen(),
+                            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                              return FadeTransition(opacity: animation, child: child);
+                            },
+                          ),
+                        );
+                      },
+                      style: TextButton.styleFrom(
+                        foregroundColor: const Color(0xFF6366F1),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(100),
+                          side: const BorderSide(color: Color(0xFFE5E7EB)),
+                        ),
+                      ),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.psychology_alt_rounded, size: 20),
+                          SizedBox(width: 8),
+                          Text(
+                            'Talk to Serenity',
+                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
                 ],
               ),
             ),
@@ -134,36 +190,58 @@ class _LandingScreenState extends State<LandingScreen>
     );
   }
 
-  Widget _buildListItem(IconData icon, String title, String subtitle) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, size: 24, color: const Color(0xFF6B7280)),
-        const SizedBox(width: 16),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF111827),
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                subtitle,
-                style: const TextStyle(
-                  fontSize: 15,
-                  color: Color(0xFF6B7280),
-                ),
-              ),
-            ],
+  Widget _buildFeatureCard(
+    IconData icon,
+    String title,
+    String subtitle,
+    Color bgColor,
+    Color iconColor,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: iconColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, size: 18, color: iconColor),
           ),
-        ),
-      ],
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: iconColor,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  subtitle,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Color(0xFF6B7280),
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

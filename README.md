@@ -32,7 +32,7 @@ The backend is responsible for data ingestion, risk flagging, and session storag
 
 The frontend handles the adaptive interview flow and communicates results to the backend.
 
-**Prerequisites:** Flutter SDK installed and configured.
+**Prerequisites:** Flutter SDK ins`talled and configured.
 
 1. Navigate to the root directory:
    ```bash
