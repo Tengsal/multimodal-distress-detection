@@ -1,0 +1,29 @@
+services:
+  # Backend FastAPI Service
+  - type: web
+    name: distress-detection-backend
+    env: python
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.10.0
+    disk:
+      name: session-data
+      mountPath: /app/backend/data
+      sizeGB: 1
+
+  # Frontend Flutter Web Static Site
+  - type: static
+    name: distress-detection-frontend
+    buildCommand: |
+      if [ ! -d "flutter" ]; then
+        git clone https://github.com/flutter/flutter.git --depth 1 -b stable
+      fi
+      ./flutter/bin/flutter config --enable-web
+      ./flutter/bin/flutter build web --release --dart-define=API_BASE_URL=https://distress-detection-backend.onrender.com
+    staticPublishPath: build/web
+    routes:
+      - type: rewrite
+        from: /*
+        to: /index.html
