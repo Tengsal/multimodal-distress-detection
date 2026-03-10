@@ -1,0 +1,18 @@
+// Therapeutic Roadmap
+digraph {
+	rankdir=TB size="8,5"
+	node [color=lightblue fontname=Arial shape=box style="rounded,filled"]
+	P [label="PROBLEM
+The user is experiencing low with a risk score of 0.23." color=salmon]
+	O [label="EXPECTED OUTCOME
+The user should experience a significant decrease in rumination, leading to improved mood." color=lightgreen]
+	I0 [label="Using Cognitive Restructuring to identify ruminative thoughts"]
+	P -> I0
+	I0 -> O
+	I1 [label="Implementing Mindfulness Meditation to reduce rumination"]
+	P -> I1
+	I1 -> O
+	I2 [label="Engaging in Exposure Therapy to challenge negative beliefs"]
+	P -> I2
+	I2 -> O
+}

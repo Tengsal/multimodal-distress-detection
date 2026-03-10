@@ -7,7 +7,7 @@ from pathlib import Path
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from fastapi import FastAPI, status, UploadFile, File, Form
+from fastapi import FastAPI, status, UploadFile, File, Form, Depends, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
 
@@ -151,6 +151,48 @@ def _append_json(data: dict):
     with open(SESSIONS_JSON, "a", encoding="utf-8") as f:
         f.write(json.dumps(data) + "\n")
 
+def _update_session_rag(session_id: str, therapy_plan: dict, graph_path: str):
+    """
+    Updates the session record in the JSON file with the RAG results.
+    """
+    if not SESSIONS_JSON.exists():
+        return
+    
+    updated_lines = []
+    with open(SESSIONS_JSON, "r", encoding="utf-8") as f:
+        for line in f:
+            if not line.strip(): continue
+            data = json.loads(line)
+            if data.get("session_id") == session_id:
+                data["therapy_plan"] = therapy_plan
+                data["graph_path"] = graph_path
+            updated_lines.append(json.dumps(data))
+            
+    with open(SESSIONS_JSON, "w", encoding="utf-8") as f:
+        for line in updated_lines:
+            f.write(line + "\n")
+
+
+async def run_rag_background(session_id: str, risk: float, risk_level: str, quality_flags: List[str]):
+    """
+    Intensive clinical analysis run in background.
+    """
+    try:
+        rag_state = {
+            "emotion": risk_level.lower(),
+            "risk_score": risk,
+            "signals": quality_flags
+        }
+        print(f"BKG RAG: Starting analysis for {session_id}")
+        therapy_plan = await run_in_threadpool(rag_service.generate_therapy_plan, rag_state)
+        graph_path = await run_in_threadpool(therapy_graph.generate_roadmap, session_id, therapy_plan)
+        
+        # Update JSON record
+        _update_session_rag(session_id, therapy_plan, graph_path)
+        print(f"BKG RAG: Completed analysis for {session_id}")
+    except Exception as e:
+        print(f"BKG RAG ERROR: {e}")
+
 
 def _append_csv(session: SessionIn, risk_score: float, risk_level: str):
 
@@ -189,9 +231,10 @@ def _append_csv(session: SessionIn, risk_score: float, risk_level: str):
 
 @app.post("/sessions", status_code=status.HTTP_201_CREATED)
 async def create_session(
+    background_tasks: BackgroundTasks,
     session: str = Form(...),
     face_image: UploadFile = File(...),
-    voice_audio: UploadFile = File(...),
+    voice_audio: UploadFile = File(...)
 ) -> Dict[str, Any]:
 
     # ------------------------------------------------------------
@@ -285,11 +328,12 @@ async def create_session(
     # --------------------------------------------
 
     try:
-
+        print(f"PIPELINE: Starting Affect for {session_obj.session_id}...")
         affect_features = run_affect_pipeline(
             str(face_path),
             str(voice_path)
         )
+        print(f"PIPELINE: Affect completed for {session_obj.session_id}")
 
         if affect_features is None:
             affect_features = []
@@ -297,20 +341,25 @@ async def create_session(
         print("Affect features:", affect_features)
 
     except Exception as e:
-
-        print("Affect pipeline error:", e)
+        print(f"PIPELINE: Affect error: {e}")
         affect_features = []
 
     # --------------------------------------------
-    # ML risk pipeline
+    # Calculate Results
     # --------------------------------------------
 
-    engine_output = run_pipeline(
-        explicit=module_averages,
-        text=free_text,
-        latencies=latencies,
-        affect=affect_features,
-    )
+    try:
+        print(f"PIPELINE: Starting Mental State Engine for {session_obj.session_id}...")
+        engine_output = run_pipeline(
+            module_averages,
+            free_text,
+            latencies,
+            affect_features
+        )
+        print(f"PIPELINE: Mental State Engine completed for {session_obj.session_id}")
+    except Exception as e:
+        print(f"PIPELINE: Mental State Engine error: {e}")
+        return {"status": "error", "message": f"Mental State Engine failed: {str(e)}"}
 
     print("Engine Output:", engine_output)
 
@@ -340,40 +389,37 @@ async def create_session(
     # Sync High Risk Flag
     # --------------------------------------------
     is_high = (risk_level == "HIGH")
-    session_obj.is_high_risk = is_high
-
     # --------------------------------------------
-    # Store results
+    # Store results (Basic)
     # --------------------------------------------
 
     session_record = session_obj.model_dump()
-
     session_record["engine_output"] = engine_output
+    session_record["risk_score"] = risk
+    session_record["risk_level"] = risk_level
     session_record["risk_z_score"] = risk_z
     session_record["latency_z_score"] = latency_z
     session_record["quality_flags"] = quality_flags
+    session_record["therapy_plan"] = None # Will be updated by background task
+    session_record["graph_path"] = None
 
     _append_json(session_record)
     _append_csv(session_obj, risk, risk_level)
 
     # --------------------------------------------
-    # RAG-CBT Automated Hook
+    # Queue RAG-CBT (Background)
     # --------------------------------------------
-    
-    # 1. Prepare mental state for RAG
-    # We use the dominant emotion from engine_output and the calculated risk
-    rag_state = {
-        "emotion": risk_level.lower(), # or engine_output.get("dominant_emotion", "distress")
-        "risk_score": risk,
-        "signals": quality_flags + session_obj.safety_flags if hasattr(session_obj, 'safety_flags') else quality_flags
-    }
-    
-    print(f"RAG: Automatically generating therapy plan for session {session_obj.session_id}")
-    therapy_plan = rag_service.generate_therapy_plan(rag_state)
-    graph_path = therapy_graph.generate_roadmap(session_obj.session_id, therapy_plan)
+    if background_tasks:
+        background_tasks.add_task(
+            run_rag_background, 
+            session_obj.session_id, 
+            risk, 
+            risk_level, 
+            quality_flags
+        )
 
     # --------------------------------------------
-    # API response
+    # API response (Instant)
     # --------------------------------------------
 
     return {
@@ -384,9 +430,7 @@ async def create_session(
         "consistency": engine_output["consistency"],
         "risk_z_score": risk_z,
         "latency_z_score": latency_z,
-        "quality_flags": quality_flags,
-        "therapy_plan": therapy_plan,
-        "graph_path": graph_path
+        "quality_flags": quality_flags
     }
 
 
@@ -397,25 +441,53 @@ class MentalStateIn(BaseModel):
     session_id: Optional[str] = None
 
 
-@app.post("/generate-therapy-plan")
-async def generate_therapy_plan(state: MentalStateIn):
+
+
+
+class ChatQuery(BaseModel):
+    query: str
+    session_id: Optional[str] = None
+
+
+from starlette.concurrency import run_in_threadpool
+
+@app.post("/chat")
+async def chat(data: ChatQuery):
     """
-    Direct endpoint for RAG CBT plan generation.
+    Interactive RAG-based chat. (Async to prevent blocking)
     """
-    print(f"RAG: Generating therapy plan for emotion={state.emotion}")
+    print(f"RAG Chat Request: {data.query}")
+    try:
+        response = await run_in_threadpool(rag_service.chat, data.query, data.session_id)
+        return {"status": "ok", "response": response}
+    except Exception as e:
+        print(f"Chat error: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@app.get("/session-history")
+async def get_session_history():
+    """
+    Returns time-series risk data for progress visualization.
+    """
+    history = []
+    if SESSIONS_JSON.exists():
+        with open(SESSIONS_JSON, "r", encoding="utf-8") as f:
+            for line in f:
+                try:
+                    data = json.loads(line)
+                    history.append({
+                        "session_id": data.get("session_id"),
+                        "timestamp": data.get("received_at") or data.get("started_at"),
+                        "risk_score": data.get("risk_score") or data.get("engine_output", {}).get("risk_score", 0.0),
+                        "risk_level": data.get("risk_level") or data.get("engine_output", {}).get("risk_level", "UNKNOWN")
+                    })
+                except:
+                    continue
     
-    # 1. Generate JSON Plan
-    therapy_plan = rag_service.generate_therapy_plan(state.model_dump())
-    
-    # 2. Generate Visual Roadmap
-    session_id = state.session_id or datetime.utcnow().strftime("%Y%m%d%H%M%S")
-    graph_path = therapy_graph.generate_roadmap(session_id, therapy_plan)
-    
-    return {
-        "status": "ok",
-        "therapy_plan": therapy_plan,
-        "graph_path": graph_path
-    }
+    # Sort by timestamp
+    history.sort(key=lambda x: x["timestamp"] if x["timestamp"] else "")
+    return {"status": "ok", "history": history}
 
 
 @app.get("/health")

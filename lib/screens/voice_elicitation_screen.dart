@@ -102,36 +102,39 @@ class _VoiceElicitationScreenState extends ConsumerState<VoiceElicitationScreen>
     setState(() => _isSubmitting = true);
     
     try {
+      print("SUBMIT: Stopping audio recorder...");
       final path = await _audioRecorder?.stop();
+      print("SUBMIT: Audio recorder stopped. Path: $path");
+      
       if (path == null) {
+        print("SUBMIT: Error - Path is null");
         setState(() => _isSubmitting = false);
         return;
       }
       
       if (kIsWeb) {
-        // Workaround: Prevent web streams from crashing if disposed immediately.
         await Future.delayed(const Duration(milliseconds: 500));
       }
 
-      // READ AS BYTES IMMEDIATELY, HANDLE WEB BLOB URL
+      print("SUBMIT: Reading bytes from $path...");
       Uint8List bytes;
       if (kIsWeb) {
          bytes = await http.readBytes(Uri.parse(path));
       } else {
          bytes = await File(path).readAsBytes();
       }
+      print("SUBMIT: Bytes read (${bytes.length} bytes). Sending to state...");
       
       final notifier = ref.read(fsmProvider.notifier);
-      
-      // Save audio BYTES to state
       notifier.saveAudioBytes(bytes);
       
-      // Submit using the bytes now stored in state
+      print("SUBMIT: Calling submitSession()...");
       await notifier.submitSession();
+      print("SUBMIT: submitSession() completed.");
       
       notifier.finish();
     } catch (e) {
-      debugPrint("Final submission error: $e");
+      print("SUBMIT: CATCH ERROR: $e");
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

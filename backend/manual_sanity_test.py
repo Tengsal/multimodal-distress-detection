@@ -2,7 +2,7 @@ import requests
 import uuid
 from datetime import datetime, timedelta
 
-URL = "http://127.0.0.1:8000/sessions"
+URL = "http://127.0.0.1:8080/sessions"
 
 
 def build_session(rating_value, latency_seconds):

@@ -123,9 +123,14 @@ class InterviewScreen extends ConsumerWidget {
             ),
 
             // ══════════════════════════════════════
-            // 💡 CBT COPING SUGGESTIONS
+            // 💡 DYNAMIC CBT INTERVENTIONS (from RAG)
             // ══════════════════════════════════════
-            if (suggestions.isNotEmpty) ...[
+            if (state.therapyPlan != null) ...[
+              const SizedBox(height: 28),
+              _SectionHeader(title: "RAG-Powered CBT Plan", emoji: "🧠"),
+              const SizedBox(height: 12),
+              _TherapyPlanCard(plan: state.therapyPlan!),
+            ] else if (suggestions.isNotEmpty) ...[
               const SizedBox(height: 28),
               _SectionHeader(title: "Personalized Coping Exercises", emoji: "💡"),
               const SizedBox(height: 4),
@@ -530,6 +535,98 @@ class _HelplineRow extends StatelessWidget {
 // CBT Coping Card
 // ══════════════════════════════════════════════════════════
 
+class _TherapyPlanCard extends StatelessWidget {
+  final Map<String, dynamic> plan;
+  const _TherapyPlanCard({required this.plan});
+
+  @override
+  Widget build(BuildContext context) {
+    final problem = plan['problem'] ?? 'General Distress';
+    final interventions = List<String>.from(plan['intervention'] ?? []);
+    final outcome = plan['expected_outcome'] ?? '';
+
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: Color(0xFFE8F0FE), width: 2),
+      ),
+      color: Colors.white,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.psychology_outlined, color: Color(0xFF1A73E8)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    problem,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: Color(0xFF1A1D2B),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const Divider(height: 32),
+            const Text(
+              "Recommended Interventions:",
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+                color: Color(0xFF1A73E8),
+              ),
+            ),
+            const SizedBox(height: 12),
+            ...interventions.map((item) => Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text("• ", style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1A73E8))),
+                  Expanded(child: Text(item, style: const TextStyle(fontSize: 14, height: 1.4))),
+                ],
+              ),
+            )),
+            if (outcome.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF0F7FF),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.auto_awesome, size: 16, color: Color(0xFF1A73E8)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        "Goal: $outcome",
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontStyle: FontStyle.italic,
+                          color: Color(0xFF1A73E8),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+
 class _CopingCard extends StatelessWidget {
   final CopingSuggestion suggestion;
   const _CopingCard({required this.suggestion});
@@ -609,9 +706,7 @@ class _CopingCard extends StatelessWidget {
   }
 }
 
-// ══════════════════════════════════════════════════════════
-// Section Header
-// ══════════════════════════════════════════════════════════
+
 
 class _SectionHeader extends StatelessWidget {
   final String title;

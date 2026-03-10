@@ -2,7 +2,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../state/fsm_provider.dart';
-import '../data/chatbot_responses.dart';
+import '../services/session_service.dart';
+import '../widgets/progress_dashboard.dart';
 
 class ChatMessage {
   final String text;
@@ -48,7 +49,7 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
           _addBotMessage("I've also generated a visual roadmap for your therapy journey. You can see it below.");
         }
       } else {
-        _addBotMessage(ChatbotEngine.greeting);
+        _addBotMessage("Hello! I'm your Wellness Support assistant. How are you feeling today?");
       }
     });
   }
@@ -86,50 +87,16 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
     // Simulate thinking delay
     await Future.delayed(Duration(milliseconds: 800 + (text.length * 8).clamp(0, 1200)));
 
-    final response = ChatbotEngine.respond(text);
+    // Use backend RAG chat
+    final fsm = ref.read(fsmProvider);
+    final responseText = await SessionService.chat(text);
 
     if (mounted) {
       setState(() {
         _isTyping = false;
-        _messages.add(ChatMessage(text: response.message, isUser: false));
+        _messages.add(ChatMessage(text: responseText, isUser: false));
       });
       _scrollToBottom();
-
-      // Send follow-up after brief delay
-      if (response.followUp != null) {
-        await Future.delayed(const Duration(milliseconds: 900));
-        if (mounted) {
-          setState(() {
-            _isTyping = true;
-          });
-          await Future.delayed(const Duration(milliseconds: 600));
-          if (mounted) {
-            setState(() {
-              _isTyping = false;
-              _messages.add(ChatMessage(text: response.followUp!, isUser: false));
-            });
-            _scrollToBottom();
-          }
-        }
-      }
-
-      // Send exercise prompt after another delay
-      if (response.exercisePrompt != null) {
-        await Future.delayed(const Duration(milliseconds: 1200));
-        if (mounted) {
-          setState(() {
-            _isTyping = true;
-          });
-          await Future.delayed(const Duration(milliseconds: 700));
-          if (mounted) {
-            setState(() {
-              _isTyping = false;
-              _messages.add(ChatMessage(text: "💡 ${response.exercisePrompt!}", isUser: false));
-            });
-            _scrollToBottom();
-          }
-        }
-      }
     }
   }
 
@@ -142,129 +109,136 @@ class _ChatbotScreenState extends ConsumerState<ChatbotScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FB),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF1A73E8),
-        foregroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded),
-          onPressed: () => Navigator.of(context).pop(),
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF5F7FB),
+        appBar: AppBar(
+          backgroundColor: const Color(0xFF1A73E8),
+          foregroundColor: Colors.white,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new_rounded),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+          title: const Text(
+            "Wellness Support",
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+          ),
+          bottom: const TabBar(
+            tabs: [
+              Tab(icon: Icon(Icons.chat_bubble_outline_rounded), text: "Chat"),
+              Tab(icon: Icon(Icons.insights_rounded), text: "Progress"),
+            ],
+            indicatorColor: Colors.white,
+            labelColor: Colors.white,
+            unselectedLabelColor: Colors.white70,
+          ),
         ),
-        title: Row(
+        body: TabBarView(
           children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(18),
-              ),
-              child: const Center(
-                child: Text("💙", style: TextStyle(fontSize: 18)),
-              ),
-            ),
-            const SizedBox(width: 10),
-            const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  "Wellness Support",
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                ),
-                Text(
-                  "Here to listen",
-                  style: TextStyle(fontSize: 11, color: Colors.white70),
-                ),
-              ],
-            ),
+            _buildChatView(),
+            _buildDashboardView(),
           ],
         ),
       ),
-      body: Column(
-        children: [
-          // Messages List
-          Expanded(
-            child: ListView.builder(
-              controller: _scrollController,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              itemCount: _messages.length + (_isTyping ? 1 : 0),
-              itemBuilder: (context, index) {
-                if (_isTyping && index == _messages.length) {
-                  return _TypingIndicator();
-                }
-                
-                final message = _messages[index];
-                final fsm = ref.watch(fsmProvider);
-                
-                // If it's the specific invitation for the graph, show the image
-                if (!message.isUser && message.text.contains("visual roadmap") && fsm.graphPath != null) {
-                  return Column(
-                    children: [
-                      _MessageBubble(message: message),
-                      _GraphRoadmap(path: fsm.graphPath!),
-                    ],
-                  );
-                }
-                
-                return _MessageBubble(message: message);
-              },
-            ),
-          ),
+    );
+  }
 
-          // Input Bar
-          Container(
-            color: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            child: SafeArea(
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF0F3FA),
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: const Color(0xFFDDE1EA)),
-                      ),
-                      child: TextField(
-                        controller: _controller,
-                        onSubmitted: (_) => _sendMessage(),
-                        maxLines: null,
-                        decoration: const InputDecoration(
-                          hintText: "Share how you're feeling...",
-                          hintStyle: TextStyle(color: Color(0xFF9AA3B8)),
-                          border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 10,
-                          ),
-                        ),
-                      ),
+  Widget _buildDashboardView() {
+    return const SingleChildScrollView(
+      padding: EdgeInsets.all(16),
+      child: ProgressDashboard(),
+    );
+  }
+
+  Widget _buildChatView() {
+    return Column(
+      children: [
+        // Messages List
+        Expanded(
+          child: ListView.builder(
+            controller: _scrollController,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            itemCount: _messages.length + (_isTyping ? 1 : 0),
+            itemBuilder: (context, index) {
+              if (_isTyping && index == _messages.length) {
+                return _TypingIndicator();
+              }
+              
+              final message = _messages[index];
+              final fsm = ref.watch(fsmProvider);
+              
+              // If it's the specific invitation for the graph, show the image
+              if (!message.isUser && message.text.contains("visual roadmap") && fsm.graphPath != null) {
+                return Column(
+                  children: [
+                    _MessageBubble(message: message),
+                    _GraphRoadmap(path: fsm.graphPath!),
+                  ],
+                );
+              }
+              
+              return _MessageBubble(message: message);
+            },
+          ),
+        ),
+
+        // Input Bar
+        _buildInputBar(),
+      ],
+    );
+  }
+
+  Widget _buildInputBar() {
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      child: SafeArea(
+        child: Row(
+          children: [
+            Expanded(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF0F3FA),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: const Color(0xFFDDE1EA)),
+                ),
+                child: TextField(
+                  controller: _controller,
+                  onSubmitted: (_) => _sendMessage(),
+                  maxLines: null,
+                  decoration: const InputDecoration(
+                    hintText: "Share how you're feeling...",
+                    hintStyle: TextStyle(color: Color(0xFF9AA3B8)),
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 10,
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  GestureDetector(
-                    onTap: _sendMessage,
-                    child: Container(
-                      width: 46,
-                      height: 46,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1A73E8),
-                        borderRadius: BorderRadius.circular(23),
-                      ),
-                      child: const Icon(
-                        Icons.send_rounded,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
-          ),
-        ],
+            const SizedBox(width: 8),
+            GestureDetector(
+              onTap: _sendMessage,
+              child: Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1A73E8),
+                  borderRadius: BorderRadius.circular(23),
+                ),
+                child: const Icon(
+                  Icons.send_rounded,
+                  color: Colors.white,
+                  size: 20,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

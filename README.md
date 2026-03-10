@@ -22,7 +22,7 @@ The backend is responsible for data ingestion, risk flagging, and session storag
    ```
 3. Start the server:
    ```bash
-   uvicorn main:app --reload
+   uvicorn main:app --reload --port 8080
    ```
    *The API will be available at `http://127.0.0.1:8000`. You can view the interactive documentation at `http://127.0.0.1:8000/docs`.*
 

@@ -15,7 +15,7 @@ class SessionService {
   static const String _baseUrl = "http://localhost:8080";
   static const String _endpoint = "/sessions";
 
-  static const Duration _timeout = Duration(seconds: 120);
+  static const Duration _timeout = Duration(seconds: 300);
 
   static final _uuid = const Uuid();
 
@@ -54,6 +54,44 @@ class SessionService {
     );
 
     return _postBytes(session, videoBytes, audioBytes);
+  }
+
+  static Future<String> chat(String query, {String? sessionId}) async {
+    final uri = Uri.parse("$_baseUrl/chat");
+    try {
+      final response = await http.post(
+        uri,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({
+          "query": query,
+          "session_id": sessionId,
+        }),
+      ).timeout(_timeout);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = jsonDecode(response.body);
+        return data['response'] ?? "I'm sorry, I couldn't process that.";
+      } else {
+        return "Backend error: ${response.statusCode}";
+      }
+    } catch (e) {
+      return "Network error: $e";
+    }
+  }
+
+  static Future<List<Map<String, dynamic>>> getSessionHistory() async {
+    final uri = Uri.parse("$_baseUrl/session-history");
+    try {
+      final response = await http.get(uri).timeout(_timeout);
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return List<Map<String, dynamic>>.from(data['history']);
+      }
+      return [];
+    } catch (e) {
+      print("History error: $e");
+      return [];
+    }
   }
 
   static SessionModel _buildSession({

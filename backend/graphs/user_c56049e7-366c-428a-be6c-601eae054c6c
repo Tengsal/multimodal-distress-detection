@@ -1,0 +1,18 @@
+// Therapeutic Roadmap
+digraph {
+	rankdir=TB size="8,5"
+	node [color=lightblue fontname=Arial shape=box style="rounded,filled"]
+	P [label="PROBLEM
+Concise summary of the core issue" color=salmon]
+	O [label="EXPECTED OUTCOME
+Specific behavioral change expected" color=lightgreen]
+	I0 [label="Actionable step 1"]
+	P -> I0
+	I0 -> O
+	I1 [label="Actionable step 2"]
+	P -> I1
+	I1 -> O
+	I2 [label="Actionable step 3"]
+	P -> I2
+	I2 -> O
+}
