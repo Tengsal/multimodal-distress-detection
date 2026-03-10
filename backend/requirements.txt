@@ -4,12 +4,12 @@
 fastapi
 uvicorn
 pydantic
+python-multipart
 
 # ----------------------------
 # Core ML / math
 # ----------------------------
 numpy
-scipy
 pandas
 scikit-learn
 
@@ -23,21 +23,6 @@ spacy
 vaderSentiment
 
 # ----------------------------
-# Computer Vision (Face)
+# Computer Vision
 # ----------------------------
 opencv-python
-mediapipe
-deepface
-tensorflow
-
-# ----------------------------
-# Audio processing (Voice)
-# ----------------------------
-librosa
-soundfile
-pyaudio
-
-# ----------------------------
-# Utility
-# ----------------------------
-python-multipart
