@@ -1,0 +1,9 @@
+[build]
+  command = "if cd flutter; then git pull && cd ..; else git clone https://github.com/flutter/flutter.git --depth 1 -b stable; fi && flutter/bin/flutter config --enable-web && flutter/bin/flutter build web --release"
+  publish = "build/web"
+
+# SPA: redirect all paths to index.html for Flutter routing
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
