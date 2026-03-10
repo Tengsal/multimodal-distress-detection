@@ -17,6 +17,8 @@ from pydantic import BaseModel, Field, field_validator
 
 BASE_DIR = Path(__file__).resolve().parent
 sys.path.append(str(BASE_DIR))
+# Add repo root to path for Render deployment
+sys.path.append(str(BASE_DIR.parent))
 
 DATA_DIR = BASE_DIR / "data"
 UPLOAD_DIR = BASE_DIR / "uploads"
