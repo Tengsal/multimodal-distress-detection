@@ -1,5 +1,4 @@
 services:
-  # FastAPI Backend
   - type: web
     name: distress-detection-backend
     env: python
@@ -8,13 +7,3 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.10
-
-  # Flutter Web Frontend
-  - type: web
-    name: distress-detection-frontend
-    env: static
-    buildCommand: |
-      git clone https://github.com/flutter/flutter.git --depth 1 -b stable
-      ./flutter/bin/flutter config --enable-web
-      ./flutter/bin/flutter build web --release --dart-define=API_BASE_URL=https://distress-detection-backend.onrender.com
-    staticPublishPath: build/web
