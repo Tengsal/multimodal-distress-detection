@@ -35,7 +35,18 @@ print("Backend path:", BASE_DIR)
 # ------------------------------------------------------------
 
 from mental_state_engine.src.main import run_pipeline
-from face_affect_pipeline.affect_runner import run_affect_pipeline
+
+try:
+    from face_affect_pipeline.affect_runner import run_affect_pipeline
+    AFFECT_PIPELINE_AVAILABLE = True
+except Exception as e:
+    AFFECT_PIPELINE_AVAILABLE = False
+    print("Affect pipeline disabled:", e)
+
+    def run_affect_pipeline(face_path: str, voice_path: str) -> List[float]:
+        # Fallback for lightweight/hackathon deployments where heavy
+        # media dependencies are intentionally not installed.
+        return [0.0] * 16
 
 from baseline_model import (
     update_baseline,

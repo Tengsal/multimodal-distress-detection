@@ -12,11 +12,22 @@ import '../models/session_model.dart';
 import 'scoring_engine.dart';
 
 class SessionService {
-  static const String _baseUrl = 'http://localhost:8000';
+  static final String _baseUrl = _normalizeBaseUrl(
+    const String.fromEnvironment(
+      'API_BASE_URL',
+      defaultValue: 'http://localhost:8000',
+    ),
+  );
   static const String _endpoint = '/sessions';
   static const Duration _timeout = Duration(seconds: 120);
 
   static final Uuid _uuid = const Uuid();
+
+  static String _normalizeBaseUrl(String url) {
+    final trimmed = url.trim();
+    if (trimmed.isEmpty) return 'http://localhost:8000';
+    return trimmed.endsWith('/') ? trimmed.substring(0, trimmed.length - 1) : trimmed;
+  }
 
   static Future<Map<String, dynamic>> submitSession({
     required ScoringEngine engine,
