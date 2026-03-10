@@ -7,23 +7,18 @@ services:
     startCommand: cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: PYTHON_VERSION
-        value: 3.10.0
+        value: 3.10
     disk:
       name: session-data
-      mountPath: /app/backend/data
+      mountPath: /opt/render/project/src/backend/data
       sizeGB: 1
 
-  # Frontend Flutter Web Static Site
-  - type: static
+  # Frontend Flutter Web
+  - type: web
     name: distress-detection-frontend
+    env: static
     buildCommand: |
-      if [ ! -d "flutter" ]; then
-        git clone https://github.com/flutter/flutter.git --depth 1 -b stable
-      fi
+      git clone https://github.com/flutter/flutter.git --depth 1 -b stable
       ./flutter/bin/flutter config --enable-web
       ./flutter/bin/flutter build web --release --dart-define=API_BASE_URL=https://distress-detection-backend.onrender.com
     staticPublishPath: build/web
-    routes:
-      - type: rewrite
-        from: /*
-        to: /index.html
