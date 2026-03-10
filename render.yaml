@@ -1,5 +1,5 @@
 services:
-  # Backend FastAPI Service
+  # FastAPI Backend
   - type: web
     name: distress-detection-backend
     env: python
@@ -8,12 +8,8 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.10
-    disk:
-      name: session-data
-      mountPath: /opt/render/project/src/backend/data
-      sizeGB: 1
 
-  # Frontend Flutter Web
+  # Flutter Web Frontend
   - type: web
     name: distress-detection-frontend
     env: static
