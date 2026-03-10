@@ -15,9 +15,10 @@ class SessionService {
   static final String _baseUrl = _normalizeBaseUrl(
     const String.fromEnvironment(
       'API_BASE_URL',
-      defaultValue: 'http://localhost:8000',
+      defaultValue: 'https://multimodal-distress-detection-1.onrender.com',
     ),
   );
+}
   static const String _endpoint = '/sessions';
   static const Duration _timeout = Duration(seconds: 120);
 
